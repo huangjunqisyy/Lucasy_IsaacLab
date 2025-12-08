@@ -180,21 +180,26 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         is_rendering = self.sim.has_gui() or self.sim.has_rtx_sensors()
 
         # perform physics stepping
+        # 核心循环：执行多次物理步
         for _ in range(self.cfg.decimation):
             self._sim_step_counter += 1
             # set actions into buffers
+            # 1. 应用动作
             self.action_manager.apply_action()
             # set actions into simulator
             self.scene.write_data_to_sim()
             # simulate
+            # 2. 物理步进
             self.sim.step(render=False)
             self.recorder_manager.record_post_physics_decimation_step()
             # render between steps only if the GUI or an RTX sensor needs it
             # note: we assume the render interval to be the shortest accepted rendering interval.
             #    If a camera needs rendering at a faster frequency, this will lead to unexpected behavior.
+            # 3. 按需渲染
             if self._sim_step_counter % self.cfg.sim.render_interval == 0 and is_rendering:
                 self.sim.render()
             # update buffers at sim dt
+            # 4. 更新场景缓冲区 (位置、速度等)
             self.scene.update(dt=self.physics_dt)
 
         # post-step:
@@ -208,13 +213,36 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         # -- reward computation
         self.reward_buf = self.reward_manager.compute(dt=self.step_dt)
 
+        # -- reset envs that terminated/timed-out and log the episode information
+        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
+
+        # 如果有环境需要重置，计算当前的观测值（这代表了 termination 时的状态）
+        # 注意：这里我们调用 compute 但通常不更新历史 buffer (update_history=False)，
+        # 因为历史 buffer 的更新通常留给重置后的观测计算。
+        if len(reset_env_ids) > 0:
+            # 获取当前物理状态下的观测（即 s_T）
+            terminal_obs = self.observation_manager.compute()
+            
+            # 将其保存到 extras 中，供算法层使用
+            if self.extras is None: self.extras = {}
+            # 注意：Isaac Lab 的 extras 通常每步会被清空或覆盖，确保这里是安全的写入
+            self.extras["terminal_observation"] = {}
+            if isinstance(terminal_obs, dict):
+                for key, value in terminal_obs.items():
+                    if value is not None:
+                      self.extras["terminal_observation"][key] = value[reset_env_ids].to(self.device)
+            else:
+                self.extras["terminal_observation"] = terminal_obs[reset_env_ids].to(self.device)
+        else:
+            # 清理旧数据防止误用
+            if self.extras and "terminal_observation" in self.extras:
+                self.extras.pop("terminal_observation")
+
         if len(self.recorder_manager.active_terms) > 0:
             # update observations for recording if needed
             self.obs_buf = self.observation_manager.compute()
             self.recorder_manager.record_post_step()
 
-        # -- reset envs that terminated/timed-out and log the episode information
-        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(reset_env_ids) > 0:
             # trigger recorder terms for pre-reset calls
             self.recorder_manager.record_pre_reset(reset_env_ids)
@@ -228,12 +256,13 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             # trigger recorder terms for post-reset calls
             self.recorder_manager.record_post_reset(reset_env_ids)
 
-        # -- update command
+        # -- update command(更新指令，如随机生成新的目标速度)
         self.command_manager.compute(dt=self.step_dt)
         # -- step interval events
         if "interval" in self.event_manager.available_modes:
             self.event_manager.apply(mode="interval", dt=self.step_dt)
         # -- compute observations
+        # 注意：这必须在 reset 之后做！
         # note: done after reset to get the correct observations for reset envs
         self.obs_buf = self.observation_manager.compute(update_history=True)
 

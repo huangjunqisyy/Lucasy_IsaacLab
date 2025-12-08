@@ -13,6 +13,8 @@ from isaaclab.utils import configclass
 from .rnd_cfg import RslRlRndCfg
 from .symmetry_cfg import RslRlSymmetryCfg
 
+from typing import List
+
 #########################
 # Policy configurations #
 #########################
@@ -236,3 +238,15 @@ class RslRlOnPolicyRunnerCfg(RslRlBaseRunnerCfg):
 
     algorithm: RslRlPpoAlgorithmCfg = MISSING
     """The algorithm configuration."""
+
+@configclass
+class AMPDataCfg:
+    asset_name: str = "robot"
+    motion_files: List[str] = MISSING
+    body_names: List[str] = MISSING
+    # root_name: List[str] = MISSING
+    # ee_names: List[str] = MISSING
+    amp_obs_terms:  List[str] = ["joint_pos", "joint_vel"]
+    discriminator_lr: float = MISSING
+    num_learning_epochs: int = MISSING
+    num_mini_batches: int = MISSING

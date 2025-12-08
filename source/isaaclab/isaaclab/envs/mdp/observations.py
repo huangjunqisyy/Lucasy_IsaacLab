@@ -280,6 +280,253 @@ def joint_effort(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCf
     asset: Articulation = env.scene[asset_cfg.name]
     return asset.data.applied_torque[:, asset_cfg.joint_ids]
 
+def body_quat_w(
+    env:ManagerBasedRLEnv, 
+    asset_cfg:SceneEntityCfg=SceneEntityCfg("robot")
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_quat = asset.data.body_quat_w[:, asset_cfg.body_ids]
+    return body_quat.reshape(env.num_envs, -1)
+    
+def body_lin_vel_w(
+    env:ManagerBasedRLEnv, 
+    asset_cfg:SceneEntityCfg=SceneEntityCfg("robot")
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids]
+    return body_lin_vel_w.reshape(env.num_envs, -1)
+
+def body_ang_vel_w(
+    env:ManagerBasedRLEnv, 
+    asset_cfg:SceneEntityCfg=SceneEntityCfg("robot")
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_ang_vel_w = asset.data.body_ang_vel_w[:, asset_cfg.body_ids]
+    return body_ang_vel_w.reshape(env.num_envs, -1)
+
+# def body_pos_w(
+#     env: ManagerBasedEnv, 
+#     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+# ) -> torch.Tensor:
+#     """
+#     自定义函数：只返回关键部位的世界坐标位置 (3 dims)，不包含旋转。
+#     """
+#     asset: Articulation = env.scene[asset_cfg.name]
+    
+#     # 1. 获取 Pose (N, num_bodies, 7)
+#     # 2. 只取前 3 维 (Position) -> (N, num_bodies, 3)
+#     # 3. 减去环境原点 (env_origins) 以获得正确的相对世界坐标
+#     pos = asset.data.body_pose_w[:, asset_cfg.body_ids, :3]
+#     pos = pos - env.scene.env_origins.unsqueeze(1)
+    
+#     # 4. 展平 (N, num_bodies * 3)
+#     return pos.reshape(env.num_envs, -1)
+
+def body_pos_w(
+    env:ManagerBasedRLEnv, 
+    asset_cfg:SceneEntityCfg=SceneEntityCfg("robot")
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids] - env.scene.env_origins.unsqueeze(1)
+    return body_pos_w.reshape(env.num_envs, -1)
+
+from isaaclab.utils.math import (
+    quat_from_euler_xyz, 
+    euler_xyz_from_quat, 
+    quat_apply_inverse, 
+    matrix_from_quat,
+    quat_mul,
+    quat_conjugate
+)
+def _get_root_heading_inv(root_quat_w: torch.Tensor) -> torch.Tensor:
+    """
+    计算 Root Heading 的逆旋转。
+    Heading 定义为 Root 在水平面上的投影方向（只保留 Yaw，去除 Roll/Pitch）。
+    用于将世界坐标转换到 "Heading-Invariant" 局部坐标系。
+    
+    Args:
+        root_quat_w: (N, 4) Root 的世界四元数
+    Returns:
+        heading_inv: (N, 4) Heading 的逆旋转
+    """
+    # 提取欧拉角 (roll, pitch, yaw) -> 假设 Z-up
+    roll, pitch, yaw = euler_xyz_from_quat(root_quat_w)
+    
+    # 构建只包含 Yaw 的旋转 (Heading)
+    zeros = torch.zeros_like(yaw)
+    heading_quat = quat_from_euler_xyz(zeros, zeros, yaw)
+    
+    # 返回逆旋转 (Inverse/Conjugate)
+    return quat_conjugate(heading_quat)
+
+def _compute_6d_rotation(quats: torch.Tensor) -> torch.Tensor:
+    """
+    将四元数转换为 6D 旋转表示 (旋转矩阵的前两列, Normal & Tangent)。
+    
+    Args:
+        quats: (N, B, 4)
+    Returns:
+        rot_6d: (N, B, 6) -> 注意这里保留维度方便后续 flatten
+    """
+    # 转换为矩阵 (N, B, 3, 3)
+    rot_mats = matrix_from_quat(quats)
+    
+    # 取前两列 (..., 3, 2)
+    rot_6d = rot_mats[..., :2]
+    
+    # 展平最后两个维度 -> (N, B, 6)
+    return rot_6d.flatten(start_dim=-2)
+
+def amp_joint_pos_rel(
+    env: ManagerBasedEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """
+    [Joint Position] 关节相对位置。
+    AMP 通常使用相对位置或归一化位置。
+    符合接口: joint_pos
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    # 获取指定关节
+    return asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+
+
+def amp_joint_vel_rel(
+    env: ManagerBasedEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """
+    [Joint Velocity] 关节速度。
+    关节速度本身就是在关节空间定义的，天然符合 Local 要求，不需要额外旋转。
+    符合接口: joint_vel
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    # 获取指定关节速度
+    # 注：AMP 论文有时不减 default_vel，直接用 joint_vel，但减去默认值（通常是0）也没错。
+    return asset.data.joint_vel[:, asset_cfg.joint_ids] - asset.data.default_joint_vel[:, asset_cfg.joint_ids]
+
+def amp_body_position_local(
+    env: ManagerBasedEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """
+    [Body Position - AMP Style] 
+    计算 Body 相对于 Root 的位置，并投影到 Heading 局部坐标系。
+    
+    对应论文: "3D positions of the end-effectors... in character's local coordinate frame"
+    对应接口: body_pos_w
+    
+    Args:
+        asset_cfg: body_ids 应包含需要观测的部位 (如手、脚)
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    
+    # 1. 获取数据
+    root_pos_w = asset.data.root_pos_w
+    root_quat_w = asset.data.root_quat_w
+    # 获取 asset_cfg 指定的 bodies 的世界坐标
+    body_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids] 
+    
+    # 2. 计算相对位移 (Diff = Body - Root)
+    # (N, num_bodies, 3)
+    body_vec_w = body_pos_w - root_pos_w.unsqueeze(1)
+    
+    # 3. 计算 Heading 逆旋转
+    heading_inv = _get_root_heading_inv(root_quat_w)
+    
+    # 4. 投影到局部坐标系 (Rotate by Heading Inv)
+    # 广播: (N, 1, 4) vs (N, num_bodies, 3)
+    heading_inv_expanded = heading_inv.unsqueeze(1).repeat(1, body_pos_w.shape[1], 1)
+    body_pos_local = quat_apply_inverse(heading_inv_expanded, body_vec_w)
+    
+    # 5. 展平返回 (N, num_bodies * 3)
+    return body_pos_local.reshape(env.num_envs, -1)
+
+
+def amp_body_rotation_6d_local(
+    env: ManagerBasedEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """
+    [Body Rotation - AMP Style]
+    计算 Body 相对于 Root Heading 的旋转，并转换为 6D 表示。
+    
+    对应论文: "Local rotation of each joint... encoded using two 3D vectors"
+    对应接口: body_quat_w
+    
+    Args:
+        asset_cfg: body_ids 应包含关键肢体 (Key Bodies)
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    
+    # 1. 获取数据
+    root_quat_w = asset.data.root_quat_w
+    body_quat_w = asset.data.body_quat_w[:, asset_cfg.body_ids]
+    
+    # 2. 计算 Heading 逆旋转
+    heading_inv = _get_root_heading_inv(root_quat_w)
+    
+    # 3. 计算相对旋转 (Q_rel = Q_heading_inv * Q_body)
+    heading_inv_expanded = heading_inv.unsqueeze(1).repeat(1, body_quat_w.shape[1], 1)
+    body_quat_local = quat_mul(heading_inv_expanded, body_quat_w)
+    
+    # 4. 转 6D 并展平 (N, num_bodies * 6)
+    rot_6d = _compute_6d_rotation(body_quat_local)
+    return rot_6d.reshape(env.num_envs, -1)
+
+
+def amp_body_lin_vel_local(
+    env: ManagerBasedEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """
+    [Body Linear Velocity - AMP Style]
+    计算 Body 的世界线速度，并投影到 Heading 局部坐标系。
+    
+    对应论文: "Linear velocity ... of the root" (如果在 Config 中只选 Root)
+    对应接口: body_lin_vel_w
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    
+    # 1. 获取数据
+    root_quat_w = asset.data.root_quat_w
+    body_lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids]
+    
+    # 2. Heading 逆旋转
+    heading_inv = _get_root_heading_inv(root_quat_w)
+    
+    # 3. 投影到局部
+    heading_inv_expanded = heading_inv.unsqueeze(1).repeat(1, body_lin_vel_w.shape[1], 1)
+    body_lin_vel_local = quat_apply_inverse(heading_inv_expanded, body_lin_vel_w)
+    
+    return body_lin_vel_local.reshape(env.num_envs, -1)
+
+
+def amp_body_ang_vel_local(
+    env: ManagerBasedEnv, 
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """
+    [Body Angular Velocity - AMP Style]
+    计算 Body 的世界角速度，并投影到 Heading 局部坐标系。
+    
+    对应论文: "Angular velocity ... of the root" (如果在 Config 中只选 Root)
+    对应接口: body_ang_vel_w
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    
+    # 1. 获取数据
+    root_quat_w = asset.data.root_quat_w
+    body_ang_vel_w = asset.data.body_ang_vel_w[:, asset_cfg.body_ids]
+    
+    # 2. Heading 逆旋转
+    heading_inv = _get_root_heading_inv(root_quat_w)
+    
+    # 3. 投影到局部
+    heading_inv_expanded = heading_inv.unsqueeze(1).repeat(1, body_ang_vel_w.shape[1], 1)
+    body_ang_vel_local = quat_apply_inverse(heading_inv_expanded, body_ang_vel_w)
+    
+    return body_ang_vel_local.reshape(env.num_envs, -1)
 
 """
 Sensors.

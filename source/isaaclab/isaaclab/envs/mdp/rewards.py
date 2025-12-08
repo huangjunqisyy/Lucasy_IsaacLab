@@ -28,16 +28,19 @@ General.
 """
 
 
+# 只要环境未终止，每一步都给予正向奖励。
 def is_alive(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Reward for being alive."""
     return (~env.termination_manager.terminated).float()
 
 
+# 如果回合结束（且不是因为时间耗尽），给予惩罚。
 def is_terminated(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Penalize terminated episodes that don't correspond to episodic timeouts."""
     return env.termination_manager.terminated.float()
 
 
+# 针对特定的终止原因（通过正则匹配 term_keys）进行惩罚。
 class is_terminated_term(ManagerTermBase):
     """Penalize termination for specific terms that don't correspond to episodic timeouts.
 
@@ -72,14 +75,14 @@ class is_terminated_term(ManagerTermBase):
 Root penalties.
 """
 
-
+# 抑制机器人在垂直方向上的不必要运动
 def lin_vel_z_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize z-axis base linear velocity using L2 squared kernel."""
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
     return torch.square(asset.data.root_lin_vel_b[:, 2])
 
-
+# 惩罚机器人基座（Base）在 X 轴和 Y 轴上的角速度，即抑制机器人的“侧倾（Roll）”和“俯仰（Pitch）”晃动，但允许“转向（Yaw）”
 def ang_vel_xy_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize xy-axis base angular velocity using L2 squared kernel."""
     # extract the used quantities (to enable type-hinting)
@@ -87,6 +90,7 @@ def ang_vel_xy_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntit
     return torch.sum(torch.square(asset.data.root_ang_vel_b[:, :2]), dim=1)
 
 
+# 惩罚重力向量在机器人坐标系 XY 平面上的投影分量。强制机器人保持直立，防止身体倾斜。
 def flat_orientation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize non-flat base orientation using L2 squared kernel.
 
@@ -97,6 +101,7 @@ def flat_orientation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scen
     return torch.sum(torch.square(asset.data.projected_gravity_b[:, :2]), dim=1)
 
 
+# 让机器人保持特定的行走高度（如蹲伏或站立）。
 def base_height_l2(
     env: ManagerBasedRLEnv,
     target_height: float,
@@ -122,6 +127,7 @@ def base_height_l2(
     return torch.square(asset.data.root_pos_w[:, 2] - adjusted_target_height)
 
 
+# 惩罚特定身体部件的线性加速度。防止动作过猛，减少机械冲击，使运动更平滑。
 def body_lin_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize the linear acceleration of bodies using L2-kernel."""
     asset: Articulation = env.scene[asset_cfg.name]
@@ -133,6 +139,7 @@ Joint penalties.
 """
 
 
+# 最小化力矩。节能。鼓励机器人用最小的力完成任务。
 def joint_torques_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint torques applied on the articulation using L2 squared kernel.
 
@@ -143,6 +150,7 @@ def joint_torques_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     return torch.sum(torch.square(asset.data.applied_torque[:, asset_cfg.joint_ids]), dim=1)
 
 
+# 惩罚关节速度的绝对值和。抑制高频震荡，鼓励低速运动
 def joint_vel_l1(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize joint velocities on the articulation using an L1-kernel."""
     # extract the used quantities (to enable type-hinting)
@@ -150,6 +158,7 @@ def joint_vel_l1(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Ten
     return torch.sum(torch.abs(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
 
+# 惩罚关节运动过快或高频震荡
 def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint velocities on the articulation using L2 squared kernel.
 
@@ -160,6 +169,7 @@ def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
 
+# 限制关节加速度。极大地提高动作的平滑性，减少急停急起。
 def joint_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint accelerations on the articulation using L2 squared kernel.
 
@@ -170,6 +180,7 @@ def joint_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     return torch.sum(torch.square(asset.data.joint_acc[:, asset_cfg.joint_ids]), dim=1)
 
 
+# 维持默认姿态。惩罚当前关节角度偏离默认（标称）姿态的程度。让机器人在无指令时倾向于回到“舒适”或“自然”的姿势。
 def joint_deviation_l1(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions that deviate from the default one."""
     # extract the used quantities (to enable type-hinting)
@@ -179,6 +190,7 @@ def joint_deviation_l1(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scene
     return torch.sum(torch.abs(angle), dim=1)
 
 
+# 关节软限位。
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.
 
@@ -196,6 +208,7 @@ def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     return torch.sum(out_of_limits, dim=1)
 
 
+# 速度软限位。防止电机超速。
 def joint_vel_limits(
     env: ManagerBasedRLEnv, soft_ratio: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
@@ -222,7 +235,7 @@ def joint_vel_limits(
 Action penalties.
 """
 
-
+# 力矩超限惩罚。惩罚实际施加力矩与计算力矩的差异（主要针对显式执行器）。确保指令在物理上是可执行的（Sim-to-Real 重要项）。
 def applied_torque_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize applied torques if they cross the limits.
 
@@ -242,11 +255,13 @@ def applied_torque_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Sc
     return torch.sum(out_of_limits, dim=1)
 
 
+# 动作变化率惩罚。惩罚当前动作与上一帧动作的差值平方。防止控制信号高频抖动，保护电机。
 def action_rate_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Penalize the rate of change of the actions using L2 squared kernel."""
     return torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
 
 
+# 动作幅度惩罚。鼓励输出较小的控制信号，避免饱和。
 def action_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Penalize the actions using L2 squared kernel."""
     return torch.sum(torch.square(env.action_manager.action), dim=1)
@@ -257,6 +272,7 @@ Contact sensor.
 """
 
 
+# 非预期碰撞。防止机器人摔倒、磕碰膝盖或自行碰撞（Self-collision）。
 def undesired_contacts(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize undesired contacts as the number of violations that are above a threshold."""
     # extract the used quantities (to enable type-hinting)
@@ -268,6 +284,7 @@ def undesired_contacts(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Sce
     return torch.sum(is_contact, dim=1)
 
 
+# 接触奖励/约束。强迫机器人脚必须着地（较少用，通常用于特定阶段）。
 def desired_contacts(env, sensor_cfg: SceneEntityCfg, threshold: float = 1.0) -> torch.Tensor:
     """Penalize if none of the desired contacts are present."""
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
@@ -278,6 +295,7 @@ def desired_contacts(env, sensor_cfg: SceneEntityCfg, threshold: float = 1.0) ->
     return 1.0 * zero_contact
 
 
+# 接触力过大。防止机器人跺脚过重，保护力传感器或地面。
 def contact_forces(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize contact forces as the amount of violations of the net contact force."""
     # extract the used quantities (to enable type-hinting)
@@ -294,6 +312,7 @@ Velocity-tracking rewards.
 """
 
 
+# 线速度追踪。奖励机器人实际 XY 速度接近指令速度的程度。
 def track_lin_vel_xy_exp(
     env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
@@ -308,6 +327,7 @@ def track_lin_vel_xy_exp(
     return torch.exp(-lin_vel_error / std**2)
 
 
+# 角速度追踪。奖励机器人实际 Z 轴角速度（转向）接近指令速度的程度。
 def track_ang_vel_z_exp(
     env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:

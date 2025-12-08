@@ -7,6 +7,30 @@
 
 """Launch Isaac Sim Simulator first."""
 
+import inspect
+import sys
+import os
+
+# 备份原始函数
+_original_getfile = inspect.getfile
+_original_getmodule = inspect.getmodule
+
+def _safe_getfile(object):
+    try:
+        return _original_getfile(object)
+    except (TypeError, OSError):
+        return "<dummy_isaaclab_path>"
+
+def _safe_getmodule(object, _filename=None):
+    try:
+        return _original_getmodule(object, _filename)
+    except Exception:
+        return None
+
+# 应用补丁
+inspect.getfile = _safe_getfile
+inspect.getmodule = _safe_getmodule
+
 import argparse
 import sys
 
