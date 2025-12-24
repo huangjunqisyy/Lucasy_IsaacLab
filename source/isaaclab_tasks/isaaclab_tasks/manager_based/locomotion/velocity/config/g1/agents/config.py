@@ -50,3 +50,5 @@ g1_key_body_names = [
     "left_wrist_roll_link",     
     "right_wrist_roll_link",
 ]
+
+g1_anchor_name = ["torso_link"]

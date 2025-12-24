@@ -247,6 +247,7 @@ class AMPDataCfg:
     # root_name: List[str] = MISSING
     # ee_names: List[str] = MISSING
     amp_obs_terms:  List[str] = ["joint_pos", "joint_vel"]
+    anchor_name:   List[str] = MISSING
     discriminator_lr: float = MISSING
     num_learning_epochs: int = MISSING
     num_mini_batches: int = MISSING

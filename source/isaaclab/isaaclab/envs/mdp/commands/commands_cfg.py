@@ -246,3 +246,7 @@ class TerrainBasedPose2dCommandCfg(UniformPose2dCommandCfg):
 
     ranges: Ranges = MISSING
     """Distribution ranges for the sampled commands."""
+
+@configclass
+class UniformLevelVelocityCommandCfg(UniformVelocityCommandCfg):
+    limit_ranges: UniformVelocityCommandCfg.Ranges = MISSING

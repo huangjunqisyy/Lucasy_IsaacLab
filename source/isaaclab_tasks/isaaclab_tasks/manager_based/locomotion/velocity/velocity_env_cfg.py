@@ -89,6 +89,25 @@ class MySceneCfg(InteractiveSceneCfg):
 ##
 
 
+# @configclass
+# class CommandsCfg:
+#     """Command specifications for the MDP."""
+
+#     base_velocity = mdp.UniformLevelVelocityCommandCfg(
+#         asset_name="robot",
+#         resampling_time_range=(10.0, 10.0),
+#         rel_standing_envs=0.02,
+#         rel_heading_envs=1.0,
+#         heading_command=False,
+#         debug_vis=True,
+#         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
+#             lin_vel_x=(0.5, 1.0), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)
+#         ),
+#         limit_ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
+#             lin_vel_x=(-0.5, 2.0), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-0.3, 0.3)
+#         ),
+#     )
+
 @configclass
 class CommandsCfg:
     """Command specifications for the MDP."""
@@ -102,7 +121,7 @@ class CommandsCfg:
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.5, 1.5), lin_vel_y=(-0.1, 0.1), ang_vel_z=(-0.2, 0.2)
+            lin_vel_x=(-0.5, 2.5), lin_vel_y=(-0.1, 0.1), ang_vel_z=(-0.2, 0.2)
         ),
         # limit_ranges=mdp.UniformVelocityCommandCfg.Ranges(
             # lin_vel_x=(-0.5, 1.0), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-0.2, 0.2)
@@ -114,7 +133,7 @@ class CommandsCfg:
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.25, use_default_offset=True)
 
 
 @configclass
@@ -126,7 +145,7 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
+        # base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.2, n_max=0.2))
         projected_gravity = ObsTerm(
             func=mdp.projected_gravity,
@@ -154,7 +173,7 @@ class ObservationsCfg:
     class CriticCfg(ObsGroup):
         """Observations for critic group."""
 
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+        # base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
         projected_gravity = ObsTerm(func=mdp.projected_gravity)
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
@@ -177,33 +196,26 @@ class ObservationsCfg:
     class DiscriminatorCfg(ObsGroup):
         """Observations for AMP discriminator."""
 
-        # joint_pos = ObsTerm(func=mdp.amp_joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        # joint_vel = ObsTerm(func=mdp.amp_joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
-        # body_pos_w = ObsTerm(func=mdp.amp_body_position_local)
-        # body_quat_w = ObsTerm(func=mdp.amp_body_rotation_6d_local)
-        # body_lin_vel_w = ObsTerm(func=mdp.amp_body_lin_vel_local, noise=Unoise(n_min=-0.1, n_max=0.1))
-        # body_ang_vel_w = ObsTerm(func=mdp.amp_body_ang_vel_local, noise=Unoise(n_min=-0.2, n_max=0.2))
-
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5))
-        body_pos_w = ObsTerm(func=mdp.body_pos_w)
-        body_quat_w = ObsTerm(func=mdp.body_quat_w)
-        body_lin_vel_w = ObsTerm(func=mdp.body_lin_vel_w, noise=Unoise(n_min=-0.1, n_max=0.1))
-        body_ang_vel_w = ObsTerm(func=mdp.body_ang_vel_w, noise=Unoise(n_min=-0.2, n_max=0.2))
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel)
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+        # body_pos_b = ObsTerm(func=mdp.body_pos_b)
+        # body_quat_b = ObsTerm(func=mdp.body_quat_b)
+        # body_lin_vel_b = ObsTerm(func=mdp.base_lin_vel)
+        # body_ang_vel_b = ObsTerm(func=mdp.base_ang_vel)
 
         def __post_init__(self):
             self.enable_corruption = True
             self.concatenate_terms = True
 
-            self.adjust_key_body_indexes(
-                terms=[
-                    "body_pos_w",
-                    "body_quat_w",
-                    "body_lin_vel_w",
-                    "body_ang_vel_w",
-                ],
-                key_bodys=g1_key_body_names,
-            )
+            # self.adjust_key_body_indexes(
+            #     terms=[
+            #         # "body_pos_b",
+            #         # "body_quat_b",
+            #         "body_lin_vel_b",
+            #         "body_ang_vel_b",
+            #     ],
+            #     key_bodys=g1_key_body_names,
+            # )
 
         def adjust_key_body_indexes(self, terms:list, key_bodys:list):
             for term_name in terms:
@@ -213,58 +225,6 @@ class ObservationsCfg:
                 else:
                     term.params["asset_cfg"] = SceneEntityCfg(name="robot", body_names=key_bodys)
             return self
-
-        # def __post_init__(self):
-        #     self.enable_corruption = True
-        #     self.concatenate_terms = True
-
-        #     # --- A. 身体旋转 (Body Rotations) ---
-        #     # 对应论文: "Local rotation of each joint" 
-        #     # 需要全身主要肢体的姿态
-        #     self.adjust_key_body_indexes(
-        #         terms=["body_quat_w"],
-        #         key_bodys=g1_key_body_names,
-        #     )
-
-        #     # --- B. 身体位置 (Body Positions) ---
-        #     # 对应论文: "3D positions of the end-effectors" 
-        #     # 只需要手和脚的位置，包含膝盖或手肘会增加不必要的维度
-        #     self.adjust_key_body_indexes(
-        #         terms=["body_pos_w"],
-        #         # key_bodys=g1_key_body_names,
-        #         key_bodys=g1_ee_names, 
-        #     )
-
-        #     # --- C. 根节点速度 (Root Velocities) ---
-        #     # 对应论文: "Linear velocity and angular velocity of the root" 
-        #     # 只需要根节点的速度，不要包含手脚的速度
-        #     self.adjust_key_body_indexes(
-        #         terms=["body_lin_vel_w", "body_ang_vel_w"],
-        #         key_bodys=g1_root_name, 
-        #     )
-
-        # def adjust_key_body_indexes(self, terms:list, key_bodys:list):
-        #         """
-        #         辅助函数：批量修改 ObservationTerm 的 asset_cfg.body_names
-        #         """
-        #         for term_name in terms:
-        #             # 获取 ObsTerm 对象
-        #             term: ObsTerm = getattr(self, term_name)
-                    
-        #             # 确保 params 字典存在
-        #             if term.params is None:
-        #                 term.params = {}
-
-        #             # 修改或创建 asset_cfg
-        #             if "asset_cfg" in term.params:
-        #                 # 如果已有配置，直接修改 body_names
-        #                 # 注意：这里我们修改的是配置对象的属性，这是合法的
-        #                 term.params["asset_cfg"].body_names = key_bodys
-        #             else:
-        #                 # 如果没有配置，创建一个新的 SceneEntityCfg
-        #                 term.params["asset_cfg"] = SceneEntityCfg(name="robot", body_names=key_bodys)
-                        
-        #         return self
 
     discriminator: DiscriminatorCfg = DiscriminatorCfg()
 
@@ -279,8 +239,8 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-            "static_friction_range": (0.8, 0.8),
-            "dynamic_friction_range": (0.6, 0.6),
+            "static_friction_range": (0.3, 1.0),
+            "dynamic_friction_range": (0.3, 1.0),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,
         },
@@ -291,19 +251,19 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "mass_distribution_params": (-5.0, 5.0),
+            "mass_distribution_params": (-1.0, 3.0),
             "operation": "add",
         },
     )
 
-    base_com = EventTerm(
-        func=mdp.randomize_rigid_body_com,
-        mode="startup",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.01, 0.01)},
-        },
-    )
+    # base_com = EventTerm(
+    #     func=mdp.randomize_rigid_body_com,
+    #     mode="startup",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+    #         "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.01, 0.01)},
+    #     },
+    # )
 
     # reset
     base_external_force_torque = EventTerm(
@@ -322,12 +282,12 @@ class EventCfg:
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
             "velocity_range": {
-                "x": (-0.5, 0.5),
-                "y": (-0.5, 0.5),
-                "z": (-0.5, 0.5),
-                "roll": (-0.5, 0.5),
-                "pitch": (-0.5, 0.5),
-                "yaw": (-0.5, 0.5),
+                "x": (0.0, 0.0),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
             },
         },
     )
@@ -336,8 +296,8 @@ class EventCfg:
         func=mdp.reset_joints_by_scale,
         mode="reset",
         params={
-            "position_range": (0.5, 1.5),
-            "velocity_range": (0.0, 0.0),
+            "position_range": (1.0, 1.0),
+            "velocity_range": (-1.0, 1.0),
         },
     )
 
@@ -345,7 +305,7 @@ class EventCfg:
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
-        interval_range_s=(10.0, 15.0),
+        interval_range_s=(5.0, 5.0),
         params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
     )
 

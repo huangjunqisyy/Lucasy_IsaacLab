@@ -7,7 +7,7 @@ from isaaclab.utils import configclass
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg, AMPDataCfg
 
-from .config import g1_key_body_names, g1_root_name, g1_ee_names
+from .config import g1_key_body_names, g1_root_name, g1_ee_names, g1_anchor_name
 
 @configclass
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -53,7 +53,7 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
 class G1AMPRunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 10000
-    save_interval = 100
+    save_interval = 200
     experiment_name = "g1_amp"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -67,10 +67,10 @@ class G1AMPRunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.008,
+        entropy_coef=0.005,
         num_learning_epochs=5,
         num_mini_batches=4,
-        learning_rate=2.0e-5,
+        learning_rate=1.0e-3,
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
@@ -79,21 +79,23 @@ class G1AMPRunnerCfg(RslRlOnPolicyRunnerCfg):
     )
     amp_data = AMPDataCfg(
         motion_files=[
-            "/home/lucas/isaac-sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/g1/agents/motion.npz"
+            "/home/lucas/isaac-sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/g1/agents/datasetswalking1.npz"
         ],
         body_names = g1_key_body_names,
         # root_name = g1_root_name[0],
         # ee_names = g1_ee_names,
         amp_obs_terms = [
-            "joint_pos", "joint_vel", "body_pos_w", "body_quat_w", "body_lin_vel_w", "body_ang_vel_w"
+            # "joint_pos", "joint_vel", "body_pos_b", "body_quat_b", "body_lin_vel_b", "body_ang_vel_b"
+            "joint_pos", "joint_vel"
         ],
-        discriminator_lr = 1.0e-7,
+        anchor_name = g1_anchor_name,
+        discriminator_lr = 1.0e-3,
         num_learning_epochs=5,
         num_mini_batches=4
     )
-    amp_discr_hidden_dims = [1024, 512]
-    amp_reward_coef = 0.5
-    amp_task_reward_lerp = 0.6
+    amp_discr_hidden_dims = [256, 256]
+    amp_reward_coef = 1.0
+    amp_task_reward_lerp = 0.5
     # amp_cfg = dict(
     #     amp_obs_normalization=False,
     #     amp_hidden_dims=[256, 256, 256],
