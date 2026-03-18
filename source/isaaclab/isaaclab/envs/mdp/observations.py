@@ -19,7 +19,7 @@ from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers.manager_base import ManagerTermBase
 from isaaclab.managers.manager_term_cfg import ObservationTermCfg
-from isaaclab.sensors import Camera, Imu, RayCaster, RayCasterCamera, TiledCamera
+from isaaclab.sensors import Camera, ContactSensor, Imu, RayCaster, RayCasterCamera, TiledCamera
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
@@ -443,6 +443,180 @@ def body_incoming_wrench(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> tor
     body_incoming_joint_wrench_b = asset.data.body_incoming_joint_wrench_b[:, asset_cfg.body_ids]
     return body_incoming_joint_wrench_b.view(env.num_envs, -1)
 
+
+@generic_io_descriptor(dtype=torch.float32, observation_type="Sensor", on_inspect=[record_shape, record_dtype])
+def is_in_air(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, threshold: float = 1.0) -> torch.Tensor:
+    """Whether the selected contact bodies are currently airborne.
+
+    This returns 1.0 when none of the configured bodies in ``sensor_cfg.body_ids``
+    has contact force norm above ``threshold``; otherwise it returns 0.0.
+    """
+    # 使用接触传感器判断指定 body 是否有着地接触。
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    contact_forces = contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, :]
+    in_contact = torch.norm(contact_forces, dim=-1) > threshold
+    # 所有目标 body 都未接触时，输出 1.0（在空中）；否则输出 0.0。
+    return (~torch.any(in_contact, dim=1, keepdim=True)).float()
+
+
+@generic_io_descriptor(units="m", observation_type="Sensor", on_inspect=[record_shape, record_dtype])
+def base_height_from_terrain(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg = SceneEntityCfg("height_scanner"),
+) -> torch.Tensor:
+    """Base height over local terrain estimated from a height scanner.
+
+    This computes root height minus the mean terrain hit height from the scanner rays.
+    """
+    # 机身高度相对地形高度：root_z - 局部地形平均 z。
+    asset: Articulation = env.scene[asset_cfg.name]
+    sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
+
+    terrain_z = torch.mean(sensor.data.ray_hits_w[..., 2], dim=1, keepdim=True)
+    return asset.data.root_pos_w[:, 2].unsqueeze(1) - terrain_z
+
+
+@generic_io_descriptor(units="m", observation_type="BodyState", on_inspect=[record_shape, record_dtype, record_body_names])
+def foot_heights_from_terrain(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg,
+    sensor_cfg: SceneEntityCfg = SceneEntityCfg("height_scanner"),
+) -> torch.Tensor:
+    """Foot heights over local terrain estimated from a height scanner.
+
+    This computes each selected body height minus the mean terrain hit height from the scanner rays.
+    """
+    # 每只脚（或指定 body）相对地形高度：foot_z - 局部地形平均 z。
+    asset: Articulation = env.scene[asset_cfg.name]
+    sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
+
+    terrain_z = torch.mean(sensor.data.ray_hits_w[..., 2], dim=1, keepdim=True)
+    foot_z = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
+    return foot_z - terrain_z
+
+
+@generic_io_descriptor(units="unit", axes=["X", "Y", "Z"], observation_type="Sensor", on_inspect=[record_shape, record_dtype])
+def terrain_normals_at_feet(
+    env: ManagerBasedEnv,
+    sensor_cfg: SceneEntityCfg = SceneEntityCfg("height_scanner"),
+) -> torch.Tensor:
+    """Estimate local terrain normal from height scanner hit points.
+
+    The normal is estimated by fitting a plane to the scan hit cloud in each environment.
+    """
+    # 用高度扫描点云拟合局部平面法向。
+    sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
+    points_w = sensor.data.ray_hits_w
+
+    # 对无效命中点做回退，避免数值分解失败。
+    finite_mask = torch.isfinite(points_w).all(dim=-1, keepdim=True)
+    fallback_points = sensor.data.pos_w.unsqueeze(1).expand_as(points_w)
+    points_w = torch.where(finite_mask, points_w, fallback_points)
+
+    # 协方差最小特征值对应方向即局部平面法向。
+    centered = points_w - torch.mean(points_w, dim=1, keepdim=True)
+    cov = torch.matmul(centered.transpose(1, 2), centered) / max(points_w.shape[1], 1)
+    eigvals, eigvecs = torch.linalg.eigh(cov)
+    normals = eigvecs[..., 0]
+
+    # 统一法向朝上（z >= 0），避免符号随机翻转。
+    flip_mask = normals[:, 2] < 0.0
+    normals[flip_mask] = -normals[flip_mask]
+    return normals
+
+
+@generic_io_descriptor(observation_type="Sensor", on_inspect=[record_shape, record_dtype])
+def terrain_friction(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Proxy for contact material properties [static_friction, dynamic_friction, restitution].
+
+    This uses the average material properties currently assigned to the asset's collision shapes.
+    """
+    # 返回当前材质参数均值：[静摩擦, 动摩擦, 恢复系数]。
+    asset: Articulation = env.scene[asset_cfg.name]
+    material_props = asset.root_physx_view.get_material_properties().to(env.device)
+    return torch.mean(material_props, dim=1)
+
+
+@generic_io_descriptor(units="m/s^2", axes=["X", "Y", "Z"], observation_type="RootState", on_inspect=[record_shape, record_dtype])
+def base_linear_acceleration(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Base linear acceleration in the root frame."""
+    # 读取世界系线加速度，再旋转到机身根坐标系。
+    asset: Articulation = env.scene[asset_cfg.name]
+    base_lin_acc_w = asset.data.body_lin_acc_w[:, 0, :]
+    return math_utils.quat_apply_inverse(asset.data.root_quat_w, base_lin_acc_w)
+
+
+@generic_io_descriptor(units="m", axes=["X", "Y", "Z"], observation_type="RootState", on_inspect=[record_shape, record_dtype])
+def com_offset_randomization_value(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Current root-link COM offset in base frame.
+
+    This is a practical proxy for COM randomization value.
+    """
+    # 根 link 的 COM 偏移（base frame），可作为 COM 随机化真值代理。
+    asset: Articulation = env.scene[asset_cfg.name]
+    return asset.data.body_com_pos_b[:, 0, :]
+
+
+@generic_io_descriptor(observation_type="RootState", on_inspect=[record_shape, record_dtype])
+def base_mass_randomization_value(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    return_ratio: bool = True,
+) -> torch.Tensor:
+    """Current base mass randomization value from runtime and default masses.
+
+    If ``return_ratio`` is True, returns current_mass / default_mass.
+    Otherwise, returns current_mass - default_mass.
+    """
+    # 从物理引擎读取当前质量，并与默认质量对比。
+    asset: Articulation = env.scene[asset_cfg.name]
+    current_mass = asset.root_physx_view.get_masses().to(env.device).sum(dim=1, keepdim=True)
+    default_mass = asset.data.default_mass.sum(dim=1, keepdim=True)
+    if return_ratio:
+        return current_mass / torch.clamp(default_mass, min=1.0e-6)
+    return current_mass - default_mass
+
+
+@generic_io_descriptor(units="s", observation_type="Time", on_inspect=[record_shape, record_dtype])
+def estimated_time_to_touchdown(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg = SceneEntityCfg("height_scanner"),
+    gravity: float = 9.81,
+) -> torch.Tensor:
+    """Estimate time to touchdown using ballistic motion and terrain-relative base height."""
+    # 基于弹道方程估计落地时间，地形高度使用扫描器估计。
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    height = base_height_from_terrain(env=env, asset_cfg=asset_cfg, sensor_cfg=sensor_cfg)
+    vz = asset.data.root_lin_vel_w[:, 2].unsqueeze(1)
+    g = torch.tensor(gravity, device=env.device, dtype=height.dtype)
+    # 判别式：vz^2 + 2gh，截断到非负避免数值误差导致 NaN。
+    disc = torch.clamp(vz * vz + 2.0 * g * torch.clamp(height, min=0.0), min=0.0)
+
+    time_to_hit = (vz + torch.sqrt(disc)) / torch.clamp(g, min=1.0e-6)
+    return torch.clamp(time_to_hit, min=0.0)
+
+def gait_phase(env: ManagerBasedRLEnv, period: float) -> torch.Tensor:
+    if not hasattr(env, "episode_length_buf"):
+        env.episode_length_buf = torch.zeros(env.num_envs, device=env.device, dtype=torch.long)
+
+    global_phase = (env.episode_length_buf * env.step_dt) % period / period
+
+    phase = torch.zeros(env.num_envs, 2, device=env.device)
+    phase[:, 0] = torch.sin(global_phase * torch.pi * 2.0)
+    phase[:, 1] = torch.cos(global_phase * torch.pi * 2.0)
+    return phase
 
 def imu_orientation(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("imu")) -> torch.Tensor:
     """Imu sensor orientation in the simulation world frame.

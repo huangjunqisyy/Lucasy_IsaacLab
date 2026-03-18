@@ -124,7 +124,26 @@ def stand_still_joint_deviation_l1(
     return mdp.joint_deviation_l1(env, asset_cfg) * (torch.norm(command[:, :2], dim=1) < command_threshold)
 
 
-# 鼓励机器人在迈腿（摆动）过程中将脚抬高到指定高度
+# 鼓励机器人在迈腿（摆动）过程中将脚抬高到指定高度。
+# 核心思路：只在脚正在水平移动（摆动相）时，才惩罚脚离目标高度的偏差；
+# 脚静止（支撑相）时不关心高度，从而只对"迈步抬腿"阶段生效。
+#
+# 参数说明：
+#   target_height : 期望的脚离地高度（米），例如 0.05
+#   std           : 高斯核的标准差，控制奖励对误差的敏感度（越小越严格）
+#   tanh_mult     : tanh 的缩放系数，控制"速度门控"的灵敏度
+#
+# 计算步骤：
+#   1. foot_z_target_error = (foot_z - target_height)²
+#      每只脚当前 z 坐标与目标高度的平方误差（越偏离目标，值越大）
+#   2. foot_velocity_tanh = tanh(tanh_mult * ‖v_xy‖)
+#      脚在水平面的速度经 tanh 映射到 (0,1)，起"门控"作用：
+#        - 脚静止时 ≈ 0 → 不产生惩罚（支撑相不管高度）
+#        - 脚快速移动时 ≈ 1 → 全额计入高度误差（摆动相必须抬脚）
+#   3. reward = exp( -Σ(error * gate) / std² )
+#      对所有脚的加权误差求和，再用高斯核转为 (0,1] 的奖励：
+#        - 所有摆动脚都在目标高度附近 → 奖励接近 1
+#        - 偏差越大 → 奖励指数下降趋近 0
 def foot_clearance_reward(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, target_height: float, std: float, tanh_mult: float
 ) -> torch.Tensor:
@@ -142,27 +161,38 @@ Feet Gait rewards.
 # 强制步态相位奖励
 def feet_gait(
     env: ManagerBasedRLEnv,
-    period: float,
-    offset: list[float],
-    sensor_cfg: SceneEntityCfg,
-    threshold: float = 0.5,
-    command_name=None,
+    period: float,          # 一个完整步态周期的时长（秒），例如 0.5s
+    offset: list[float],    # 每条腿的相位偏移量（0~1），例如 [0.0, 0.5] 表示两条腿交替（相差半个周期）
+    sensor_cfg: SceneEntityCfg,  # 接触传感器配置，body_ids 指定哪些脚
+    threshold: float = 0.5,      # 站立相占整个周期的比例，默认 0.5 表示站立和摆动各占一半
+    command_name=None,           # 可选，若提供则在零指令时不给奖励
 ) -> torch.Tensor:
+    # 1. 获取每只脚当前是否处于接触状态（True=触地）
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     is_contact = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids] > 0
 
+    # 2. 计算全局相位：用当前仿真时间对步态周期取模，归一化到 [0, 1)
+    #    episode_length_buf 是当前 episode 已走的步数，乘以 step_dt 得到时间（秒）
     global_phase = ((env.episode_length_buf * env.step_dt) % period / period).unsqueeze(1)
+
+    # 3. 为每条腿加上各自的相位偏移，得到该腿当前在步态周期中的位置
+    #    例如 offset=[0.0, 0.5]，左腿相位=global_phase，右腿相位=global_phase+0.5
     phases = []
     for offset_ in offset:
         phase = (global_phase + offset_) % 1.0
         phases.append(phase)
-    leg_phase = torch.cat(phases, dim=-1)
+    leg_phase = torch.cat(phases, dim=-1)  # shape: (num_envs, num_legs)
 
+    # 4. 逐腿计算奖励：
+    #    - 如果该腿的相位 < threshold → 期望处于"站立相"（应该触地）
+    #    - 如果该腿的相位 >= threshold → 期望处于"摆动相"（应该腾空）
+    #    - 用 XNOR（同或）判断：实际状态与期望状态一致时 +1
     reward = torch.zeros(env.num_envs, dtype=torch.float, device=env.device)
     for i in range(len(sensor_cfg.body_ids)):
-        is_stance = leg_phase[:, i] < threshold
-        reward += ~(is_stance ^ is_contact[:, i])
+        is_stance = leg_phase[:, i] < threshold   # 期望该腿此刻应触地？
+        reward += ~(is_stance ^ is_contact[:, i]) # XNOR: 期望与实际一致 → True(1)，不一致 → False(0)
 
+    # 5. 如果指定了 command_name，在零指令（机器人应原地站立）时将奖励清零
     if command_name is not None:
         cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
         reward *= cmd_norm > 0.1
