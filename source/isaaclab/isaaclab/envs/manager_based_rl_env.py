@@ -22,6 +22,12 @@ from .common import VecEnvStepReturn
 from .manager_based_env import ManagerBasedEnv
 from .manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
 
+from isaaclab.utils.math import quat_apply
+
+from isaaclab.sim.spawners.shapes import ConeCfg
+from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
+from isaaclab.sim import PreviewSurfaceCfg
+
 
 class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
     """The superclass for the manager-based workflow reinforcement learning-based environments.
@@ -88,6 +94,46 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         self.metadata["render_fps"] = 1 / self.step_dt
 
         print("[INFO]: Completed setting up the environment...")
+
+        # 预先判断是否开启了辅助力课程
+        if self.cfg.getup_curriculum:
+            print("[INFO]: Get-Up Curriculum is ENABLED.")
+            # === 初始化独立课程 Buffer ===
+            # 1. 辅助力 Buffer (num_envs,)
+            self.assist_force_buf = torch.full(
+                (self.num_envs,), 
+                self.cfg.initial_assist_force, 
+                device=self.device
+            )
+            
+            # 2. 动作缩放 Buffer (num_envs, 1) -> 注意维度，方便后续广播乘法
+            self.action_scale_buf = torch.full(
+                (self.num_envs, 1), 
+                self.cfg.initial_action_scale, 
+                device=self.device
+            )
+
+            robot = self.scene["robot"]
+            target_body_name = "pelvis" # 你可以把它做成变量或从 cfg 读取
+
+            try:
+                # 查找 index
+                self.idx = robot.body_names.index(target_body_name)
+            except ValueError:
+                print(f"[Warning] Body '{target_body_name}' not found. Defaulting to index 0.")
+                self.idx = 0
+
+            marker_cfg = VisualizationMarkersCfg(
+                prim_path="/Visuals/AssistForce",
+                markers={
+                    "arrow": ConeCfg(
+                        radius=0.05, 
+                        height=0.3, 
+                        visual_material=PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)), # Red color
+                    )
+                }
+            )
+            self.assist_force_marker = VisualizationMarkers(marker_cfg)
 
     """
     Properties.
@@ -170,6 +216,12 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         Returns:
             A tuple containing the observations, rewards, resets (terminated and truncated) and extras.
         """
+        if hasattr(self, "action_scale_buf"):
+            # 确保 action 在正确的 device 上进行计算
+            action = action.to(self.device)
+            # 执行逐环境的缩放
+            action = action * self.action_scale_buf
+
         # process actions
         self.action_manager.process_action(action.to(self.device))
 
@@ -186,6 +238,10 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             # set actions into buffers
             # 1. 应用动作
             self.action_manager.apply_action()
+
+            if self.cfg.getup_curriculum:
+                self._apply_assistive_force(self.idx)
+
             # set actions into simulator
             self.scene.write_data_to_sim()
             # simulate
@@ -381,6 +437,8 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         Args:
             env_ids: List of environment ids which must be reset
         """
+        if len(env_ids) > 0 and self.cfg.getup_curriculum:
+            self._update_curriculum(env_ids)
         # update the curriculum for environments that need a reset
         self.curriculum_manager.compute(env_ids=env_ids)
         # reset the internal buffers of the scene elements
@@ -421,3 +479,173 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
 
         # reset the episode length buffer
         self.episode_length_buf[env_ids] = 0
+
+    def _apply_assistive_force(self, root_body_idx: int = 0):
+        """
+        当机器人接近直立时，施加向上的辅助拉力。
+        """
+        # 1. 获取机器人的姿态
+        # 假设你的机器人是 scene 中的 "robot"
+        robot = self.scene["robot"]
+        root_quat = robot.data.root_quat_w  # (num_envs, 4)
+        root_pos = robot.data.root_pos_w  # (num_envs, 3)
+        root_vel = robot.data.root_lin_vel_w  # (num_envs, 3)
+        root_ang_vel = robot.data.root_ang_vel_w
+        
+        # 2. 计算基座 Z 轴在世界坐标系下的方向
+        # 机器人的局部 Z 轴向量 (0, 0, 1)
+        # 将其旋转到世界坐标系
+        params_vec = torch.tensor([0.0, 0.0, 1.0], device=self.device).repeat(self.num_envs, 1)
+        heading_vec = quat_apply(root_quat, params_vec) # (num_envs, 3)
+        
+        # 3. 判断是否接近直立
+        # heading_vec[:, 2] 是 Z 分量，接近 1 表示直立，接近 0 表示躺平
+        # 这里的阈值 self.cfg.upright_threshold 比如设为 0.5 (45度) 或 0.7
+        is_upright = heading_vec[:, 2] > self.cfg.upright_threshold
+        target_stand_height = self.cfg.target_stand_height
+        is_below_target_height = root_pos[:, 2] < target_stand_height
+        should_apply_lift = torch.logical_and(is_upright, is_below_target_height)
+        active_mask = should_apply_lift & (self.assist_force_buf > 1e-3)
+
+        # damping_gain = 100.0 # 阻尼系数，越大“空气”越粘稠
+        # damping_force = -root_vel * damping_gain
+        # # 我们不希望阻尼影响 Z 轴的起立，只限制 XY 水平乱晃
+        # damping_force[:, 2] = 0.0 
+        
+        # # 角速度阻尼 (Angular Damping) - 核心改动！
+        # # 防止机器人像陀螺一样乱转
+        # ang_damping_gain = 10.0 # 试着给 5.0 ~ 20.0
+        # damping_torque = -root_ang_vel * ang_damping_gain
+
+        forces_lift = torch.zeros((self.num_envs, 3), device=self.device)
+        forces_lift[:, 2] = torch.where(
+            active_mask, 
+            self.assist_force_buf, 
+            torch.zeros_like(self.assist_force_buf)
+        )
+
+        # # total_forces = damping_force + forces_lift
+        total_forces = forces_lift
+        
+        # 接口要求的 shape: 
+        # forces: (num_envs, num_bodies_to_apply, 3)
+        # body_ids: (num_bodies_to_apply,)
+        
+        # 1. 调整 forces 维度: (num_envs, 3) -> (num_envs, 1, 3)
+        forces_applied = total_forces.unsqueeze(1)
+        
+        # 2. 准备 torques (全0): (num_envs, 1, 3)
+        # torques_applied = damping_torque.unsqueeze(1)
+        torques_applied = torch.zeros_like(forces_applied)
+        
+        # 3. 指定 body_ids
+        body_ids = torch.tensor([root_body_idx], device=self.device, dtype=torch.long)
+        
+        # 4. 调用接口写入 Buffer
+        # 注意：这只是写入了 buffer，真正的施力发生在随后的 self.scene.write_data_to_sim()
+        robot.set_external_force_and_torque(
+            forces=forces_applied, 
+            torques=torques_applied, 
+            body_ids=body_ids,
+            is_global=True
+        )
+
+        if self.sim.has_gui():
+            # 将标记移动到机器人的 Root 位置
+            # 我们可以给 Z 轴加一点偏移，让箭头浮在头顶上，不要插在肚子里
+            marker_pos = robot.data.root_pos_w.clone()
+            marker_pos[:, 2] += 0.6  # 向上偏移 0.5m
+
+             # 获取要可视化的力向量 (num_envs, 3)
+            vis_force = total_forces.clone()
+
+            # 计算力的大小 (num_envs, 1)
+            force_mag = torch.norm(vis_force, dim=-1, keepdim=True)  # (num_envs, 1)
+
+            # 计算缩放比例 (简单线性缩放)
+            visual_gain = 0.02 
+            arrow_length = force_mag * visual_gain
+            arrow_thickness = 0.8 
+
+            # 组合 Scale: (num_envs, 3) -> [thickness, thickness, length]
+            # 这里假设你的 marker 模型默认是沿 Z 轴竖立的圆柱/箭头
+            target_scales = torch.cat([
+                torch.full_like(arrow_length, arrow_thickness), # X scale (粗细)
+                torch.full_like(arrow_length, arrow_thickness), # Y scale (粗细)
+                arrow_length                                    # Z scale (长度，随力变化)
+            ], dim=1)
+
+            # 根据力的存在与否决定是否显示箭头
+            is_visible = force_mag > 1e-3
+            marker_scales = torch.where(
+                is_visible, 
+                target_scales, 
+                torch.zeros_like(target_scales)
+            )
+            
+            # 如果将来加入了水平阻尼力(damping)，箭头需要指向力的方向，
+            # 则需要计算从 (0,0,1) 到 vis_force 的旋转四元数并传入 orientations 参数。
+            self.assist_force_marker.visualize(
+                translations=marker_pos,
+                scales=marker_scales,
+            )
+
+    def _update_curriculum(self, env_ids: torch.Tensor):
+        # 1. 获取重置环境的机器人的当前高度
+        # 注意：必须在 super()._reset_idx() 之前调用，否则位置就被重置回起点了！
+        robot = self.scene["robot"]
+        root_height = robot.data.root_pos_w[env_ids, 2]
+
+        # 2. 判定成功/失败
+        success_thresh = self.cfg.target_stand_height
+        is_success = root_height >= success_thresh
+        is_failure = ~is_success
+
+        # 注意：is_success / is_failure 是相对于 env_ids 的 boolean，需要映射回全局索引
+        success_env_ids = env_ids[is_success]
+        failure_env_ids = env_ids[is_failure]
+
+        # === 成功：减少辅助力 / 动作缩放（降低难度辅助，让机器人更独立）===
+        if len(success_env_ids) > 0:
+            decay_force = self.cfg.force_decay_step
+            min_force = self.cfg.min_assist_force
+            self.assist_force_buf[success_env_ids] = torch.clamp(
+                self.assist_force_buf[success_env_ids] - decay_force,
+                min=min_force
+            )
+
+            decay_scale = self.cfg.scale_decay_step
+            min_scale = self.cfg.min_action_scale
+            # 注意：action_scale_buf 是 (num_envs, 1)，所以索引要匹配
+            self.action_scale_buf[success_env_ids] = torch.clamp(
+                self.action_scale_buf[success_env_ids] - decay_scale,
+                min=min_scale
+            )
+
+        # === 失败：恢复辅助力 / 动作缩放（增大辅助，让机器人重新获得帮助）===
+        if len(failure_env_ids) > 0:
+            recover_force = self.cfg.force_recover_step
+            max_force = self.cfg.initial_assist_force
+            self.assist_force_buf[failure_env_ids] = torch.clamp(
+                self.assist_force_buf[failure_env_ids] + recover_force,
+                max=max_force
+            )
+
+            recover_scale = self.cfg.scale_recover_step
+            max_scale = self.cfg.initial_action_scale
+            self.action_scale_buf[failure_env_ids] = torch.clamp(
+                self.action_scale_buf[failure_env_ids] + recover_scale,
+                max=max_scale
+            )
+
+        # === 节流打印：每 200 次全局 step 仅打印一次统计摘要 ===
+        if self.common_step_counter % 200 == 0:
+            avg_force = self.assist_force_buf.mean().item()
+            avg_scale = self.action_scale_buf.mean().item()
+            n_success = len(success_env_ids)
+            n_failure = len(failure_env_ids)
+            print(
+                f"[Curriculum] step={self.common_step_counter} | "
+                f"reset: {n_success} success / {n_failure} fail | "
+                f"avg_force={avg_force:.1f} | avg_scale={avg_scale:.3f}"
+            )

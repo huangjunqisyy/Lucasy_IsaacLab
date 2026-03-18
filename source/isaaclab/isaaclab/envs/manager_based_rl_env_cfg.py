@@ -78,3 +78,39 @@ class ManagerBasedRLEnvCfg(ManagerBasedEnvCfg):
 
     Please refer to the :class:`isaaclab.managers.CommandManager` class for more details.
     """
+
+    # ---------------------------------------------------------------------------
+    # Get-Up Curriculum settings (disabled by default)
+    # ---------------------------------------------------------------------------
+    getup_curriculum: bool = True
+    """Whether to enable the assistive get-up curriculum. Defaults to False."""
+
+    initial_assist_force: float = 300.0
+    """Initial upward assistive force (N) applied to the robot's pelvis. Defaults to 200.0."""
+
+    min_assist_force: float = 0.0
+    """Minimum assistive force after full curriculum progression. Defaults to 0.0."""
+
+    force_decay_step: float = 10.0
+    """Amount to decrease assist force per successful episode. Defaults to 10.0."""
+
+    force_recover_step: float = 5.0
+    """Amount to increase assist force per failed episode. Defaults to 5.0."""
+
+    initial_action_scale: float = 4.0
+    """Initial action scale multiplier applied per environment. Defaults to 4.0."""
+
+    min_action_scale: float = 1.0
+    """Minimum action scale after full curriculum progression. Defaults to 1.0."""
+
+    scale_decay_step: float = 0.05
+    """Amount to decrease action scale per successful episode. Defaults to 0.0."""
+
+    scale_recover_step: float = 0.03
+    """Amount to increase action scale per failed episode. Defaults to 0.0."""
+
+    upright_threshold: float = 0.6
+    """Z-component threshold of the robot's up-vector to be considered upright. Defaults to 0.7."""
+
+    target_stand_height: float = 0.7
+    """Root height (m) required to count an episode as a standing success. Defaults to 0.7."""

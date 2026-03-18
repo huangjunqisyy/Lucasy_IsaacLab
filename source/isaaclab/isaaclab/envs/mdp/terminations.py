@@ -58,6 +58,18 @@ def bad_orientation(
     asset: RigidObject = env.scene[asset_cfg.name]
     return torch.acos(-asset.data.projected_gravity_b[:, 2]).abs() > limit_angle
 
+def standup_bad_orientation(
+    env: ManagerBasedRLEnv, limit_angle: float, target_height: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Terminate when the asset's orientation is too far from the desired orientation limits.
+
+    This is computed by checking the angle between the projected gravity vector and the z-axis.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    root_height = asset.data.root_pos_w[:, 2]
+    return (torch.acos(-asset.data.projected_gravity_b[:, 2]).abs() > limit_angle) & (root_height >= target_height)
+
 
 def root_height_below_minimum(
     env: ManagerBasedRLEnv, minimum_height: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
