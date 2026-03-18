@@ -109,6 +109,14 @@ class RslRlDistillationRunnerCfg(RslRlBaseRunnerCfg):
     class_name: str = "DistillationRunner"
     """The runner class name. Default is DistillationRunner."""
 
+    teacher_experiment_name: str = ""
+    """The experiment name of the teacher training logs. Default is empty string.
+
+    When set, the teacher checkpoint is loaded from ``logs/rsl_rl/<teacher_experiment_name>/``
+    instead of from the distillation experiment's own log directory.
+    This is useful when the teacher was trained with a different experiment name.
+    """
+
     policy: RslRlDistillationStudentTeacherCfg = MISSING
     """The policy configuration."""
 
