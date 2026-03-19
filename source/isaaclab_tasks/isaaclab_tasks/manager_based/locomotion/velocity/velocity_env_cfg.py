@@ -252,7 +252,7 @@ class ObservationsCfg:
             self.history_length = g1_smp_window_size
             self.flatten_history_dim = True
 
-    smp: SmpMotionWindowCfg = SmpMotionWindowCfg()
+    smp_motion_window: SmpMotionWindowCfg = SmpMotionWindowCfg()
 
 
 @configclass
