@@ -25,7 +25,12 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.g1.agents.config import g1_key_body_names, g1_ee_names, g1_root_name
+from isaaclab_tasks.manager_based.locomotion.velocity.config.g1.agents.config import (
+    g1_ee_names,
+    g1_key_body_names,
+    g1_root_name,
+    g1_smp_window_size,
+)
 
 ##
 # Pre-defined configs
@@ -227,6 +232,27 @@ class ObservationsCfg:
             return self
 
     discriminator: DiscriminatorCfg = DiscriminatorCfg()
+
+    @configclass
+    class SmpMotionWindowCfg(ObsGroup):
+        """Observations for the SMP motion-prior window."""
+
+        motion_frame = ObsTerm(
+            func=mdp.smp_frame_features,
+            params={
+                "asset_cfg": SceneEntityCfg("robot"),
+                "ee_asset_cfg": SceneEntityCfg("robot", body_names=g1_ee_names),
+                "key_body_cfg": SceneEntityCfg("robot", body_names=g1_key_body_names),
+            },
+        )
+
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = True
+            self.history_length = g1_smp_window_size
+            self.flatten_history_dim = True
+
+    smp: SmpMotionWindowCfg = SmpMotionWindowCfg()
 
 
 @configclass

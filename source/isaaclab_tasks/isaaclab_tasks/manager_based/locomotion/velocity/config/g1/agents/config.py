@@ -52,3 +52,9 @@ g1_key_body_names = [
 ]
 
 g1_anchor_name = ["torso_link"]
+
+g1_smp_window_size = 10
+g1_smp_num_joints = 29
+g1_smp_feature_dim = 3 + 3 + g1_smp_num_joints + 3 * len(g1_ee_names) + 6 * len(g1_key_body_names)
+g1_smp_num_diffusion_steps = 50
+g1_smp_timesteps_k = [22, 15, 8]
