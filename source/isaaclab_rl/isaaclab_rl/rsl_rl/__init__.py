@@ -22,8 +22,4 @@ from .runner_factory import resolve_runner_class
 from .rnd_cfg import RslRlRndCfg
 from .smp_cfg import *
 from .symmetry_cfg import RslRlSymmetryCfg
-
-try:
-    from .vecenv_wrapper import RslRlVecEnvWrapper
-except ModuleNotFoundError:
-    pass
+from .vecenv_wrapper import RslRlVecEnvWrapper

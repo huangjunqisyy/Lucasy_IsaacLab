@@ -6,24 +6,9 @@
 from importlib import import_module
 
 
-class _LazyImportedRunner:
-    def __init__(self, module_name: str, attr_name: str):
-        self._module_name = module_name
-        self._attr_name = attr_name
-        self.__name__ = attr_name
-
-    def __call__(self, *args, **kwargs):
-        module = import_module(self._module_name)
-        runner_class = getattr(module, self._attr_name)
-        return runner_class(*args, **kwargs)
-
-
 def _import_string(path: str):
     module_name, attr_name = path.split(":")
-    try:
-        module = import_module(module_name)
-    except ModuleNotFoundError:
-        return _LazyImportedRunner(module_name, attr_name)
+    module = import_module(module_name)
     return getattr(module, attr_name)
 
 
