@@ -20,6 +20,25 @@ def _load_runner_factory_module():
     return module
 
 
+def _install_fake_rsl_rl_runners(monkeypatch):
+    fake_package = types.ModuleType("rsl_rl")
+    fake_package.__path__ = []
+    fake_runners = types.ModuleType("rsl_rl.runners")
+
+    class OnPolicyRunner:
+        pass
+
+    class DistillationRunner:
+        pass
+
+    fake_package.runners = fake_runners
+    fake_runners.OnPolicyRunner = OnPolicyRunner
+    fake_runners.DistillationRunner = DistillationRunner
+    monkeypatch.setitem(sys.modules, "rsl_rl", fake_package)
+    monkeypatch.setitem(sys.modules, "rsl_rl.runners", fake_runners)
+    return OnPolicyRunner, DistillationRunner
+
+
 def test_resolve_runner_type_prefers_explicit_runner_type(monkeypatch):
     runner_factory = _load_runner_factory_module()
 
@@ -41,24 +60,24 @@ def test_resolve_runner_type_prefers_explicit_runner_type(monkeypatch):
 
 def test_resolve_runner_class_falls_back_to_class_name(monkeypatch):
     runner_factory = _load_runner_factory_module()
-
-    fake_runners = types.ModuleType("rsl_rl.runners")
-
-    class OnPolicyRunner:
-        pass
-
-    class DistillationRunner:
-        pass
-
-    fake_runners.OnPolicyRunner = OnPolicyRunner
-    fake_runners.DistillationRunner = DistillationRunner
-    monkeypatch.setitem(sys.modules, "rsl_rl.runners", fake_runners)
+    on_policy_runner, _ = _install_fake_rsl_rl_runners(monkeypatch)
 
     class DummyCfg:
         class_name = "OnPolicyRunner"
 
     runner_cls = runner_factory.resolve_runner_class(DummyCfg())
-    assert runner_cls is OnPolicyRunner
+    assert runner_cls is on_policy_runner
+
+
+def test_resolve_runner_class_supports_distillation_fallback(monkeypatch):
+    runner_factory = _load_runner_factory_module()
+    _, distillation_runner = _install_fake_rsl_rl_runners(monkeypatch)
+
+    class DummyCfg:
+        class_name = "DistillationRunner"
+
+    runner_cls = runner_factory.resolve_runner_class(DummyCfg())
+    assert runner_cls is distillation_runner
 
 
 def test_resolve_runner_class_raises_for_unsupported_class():
@@ -68,4 +87,25 @@ def test_resolve_runner_class_raises_for_unsupported_class():
         class_name = "UnknownRunner"
 
     with pytest.raises(ValueError, match="Unsupported runner class: UnknownRunner"):
+        runner_factory.resolve_runner_class(DummyCfg())
+
+
+def test_resolve_runner_class_raises_for_missing_runner_configuration():
+    runner_factory = _load_runner_factory_module()
+
+    class DummyCfg:
+        pass
+
+    with pytest.raises(ValueError, match="Unsupported runner class: None"):
+        runner_factory.resolve_runner_class(DummyCfg())
+
+
+def test_resolve_runner_class_rejects_invalid_runner_type_string():
+    runner_factory = _load_runner_factory_module()
+
+    class DummyCfg:
+        runner_type = "invalid"
+        class_name = "OnPolicyRunner"
+
+    with pytest.raises(ValueError, match="runner_type must be in 'module:attr' format: invalid"):
         runner_factory.resolve_runner_class(DummyCfg())
