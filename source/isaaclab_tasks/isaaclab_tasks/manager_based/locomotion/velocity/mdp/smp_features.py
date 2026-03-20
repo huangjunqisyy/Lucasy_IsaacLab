@@ -44,8 +44,18 @@ def pack_smp_frame_features(
     expected_feature_dim: int | None = None,
 ) -> torch.Tensor:
     """将单帧 SMP 特征按照统一顺序拼接成向量。"""
-    key_body_rot6d = quat_to_rot6d(key_body_quat_b).reshape(key_body_quat_b.shape[0], -1)
-    ee_pos_b = ee_pos_b.reshape(ee_pos_b.shape[0], -1)
+    lead_shape = base_lin_vel_b.shape[:-1]
+    if base_ang_vel_b.shape[:-1] != lead_shape or joint_pos_rel.shape[:-1] != lead_shape:
+        raise ValueError("SMP 特征输入的前导维度不一致")
+    if ee_pos_b.shape[:-2] != lead_shape or key_body_quat_b.shape[:-2] != lead_shape:
+        raise ValueError("SMP 末端执行器或关键刚体输入的前导维度不一致")
+    if ee_pos_b.shape[-1] != 3:
+        raise ValueError(f"Expected ee_pos_b last dim 3, got {ee_pos_b.shape[-1]}")
+    if key_body_quat_b.shape[-1] != 4:
+        raise ValueError(f"Expected key_body_quat_b last dim 4, got {key_body_quat_b.shape[-1]}")
+
+    key_body_rot6d = quat_to_rot6d(key_body_quat_b).reshape(*lead_shape, -1)
+    ee_pos_b = ee_pos_b.reshape(*lead_shape, -1)
     features = torch.cat([base_lin_vel_b, base_ang_vel_b, joint_pos_rel, ee_pos_b, key_body_rot6d], dim=-1)
     # 使用显式维度检查，避免后续训练阶段静默出现特征长度漂移。
     if expected_feature_dim is not None and features.shape[-1] != expected_feature_dim:

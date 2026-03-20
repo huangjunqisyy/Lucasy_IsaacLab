@@ -22,6 +22,7 @@ def _load_smp_features_module():
         / "smp_features.py"
     )
     spec = importlib.util.spec_from_file_location("isaaclab_smp_feature_utils_unit", module_path)
+    assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -64,3 +65,18 @@ def test_pack_smp_frame_features_raises_for_unexpected_dim():
             key_body_quat_b=torch.tensor([[[1.0, 0.0, 0.0, 0.0]]] * 14, dtype=torch.float32).view(1, 14, 4).repeat(2, 1, 1),
             expected_feature_dim=130,
         )
+
+
+def test_pack_smp_frame_features_supports_multiple_leading_dims():
+    smp_features = _load_smp_features_module()
+
+    features = smp_features.pack_smp_frame_features(
+        base_lin_vel_b=torch.zeros(2, 5, 3),
+        base_ang_vel_b=torch.zeros(2, 5, 3),
+        joint_pos_rel=torch.zeros(2, 5, 29),
+        ee_pos_b=torch.zeros(2, 5, 4, 3),
+        key_body_quat_b=torch.tensor([[[1.0, 0.0, 0.0, 0.0]]] * 14, dtype=torch.float32).view(1, 1, 14, 4).repeat(2, 5, 1, 1),
+        expected_feature_dim=131,
+    )
+
+    assert features.shape == (2, 5, 131)

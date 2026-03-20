@@ -30,6 +30,7 @@ from isaaclab_tasks.manager_based.locomotion.velocity.config.g1.agents.config im
     g1_key_body_names,
     g1_root_name,
     g1_smp_feature_dim,
+    g1_smp_num_joints,
     g1_smp_window_size,
 )
 
@@ -244,6 +245,7 @@ class ObservationsCfg:
                 "asset_cfg": SceneEntityCfg("robot"),
                 "ee_asset_cfg": SceneEntityCfg("robot", body_names=g1_ee_names),
                 "key_body_cfg": SceneEntityCfg("robot", body_names=g1_key_body_names),
+                "expected_joint_dim": g1_smp_num_joints,
                 "expected_feature_dim": g1_smp_feature_dim,
             },
         )
