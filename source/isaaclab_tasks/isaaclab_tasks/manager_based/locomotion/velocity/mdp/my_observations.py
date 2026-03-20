@@ -28,6 +28,8 @@ def smp_frame_features(
     expected_feature_dim: int | None = None,
 ) -> torch.Tensor:
     """在机器人根坐标系下提取一帧 SMP 特征。"""
+    if asset_cfg.name != ee_asset_cfg.name or asset_cfg.name != key_body_cfg.name:
+        raise ValueError("SMP 观测当前要求 asset_cfg、ee_asset_cfg 和 key_body_cfg 指向同一个机器人资产")
     asset: Articulation = env.scene[asset_cfg.name]
 
     base_lin_vel_b = asset.data.root_lin_vel_b

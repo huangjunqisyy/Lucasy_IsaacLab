@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import torch
 
+
 def _matrix_from_quat(quat_wxyz: torch.Tensor) -> torch.Tensor:
     """使用纯 torch 将四元数转换为旋转矩阵。"""
     quat_wxyz = quat_wxyz / quat_wxyz.norm(dim=-1, keepdim=True).clamp_min(1e-8)
@@ -29,7 +30,13 @@ def _matrix_from_quat(quat_wxyz: torch.Tensor) -> torch.Tensor:
 
 
 def quat_to_rot6d(quat_wxyz: torch.Tensor) -> torch.Tensor:
-    """将四元数转换为 6D 旋转表示。"""
+    """将四元数转换为 6D 旋转表示。
+
+    这里固定采用“旋转矩阵前两列，按默认行优先顺序展平”的约定。
+    例如单位四元数会得到 `[1, 0, 0, 1, 0, 0]`。
+    """
+    if quat_wxyz.shape[-1] != 4:
+        raise ValueError(f"Expected quat_wxyz last dim 4, got {quat_wxyz.shape[-1]}")
     # 这里保持纯 torch 依赖，避免单元测试被 Isaac/Omni 导入链污染。
     mat = _matrix_from_quat(quat_wxyz)
     return mat[..., :2].reshape(*quat_wxyz.shape[:-1], 6)
@@ -45,6 +52,10 @@ def pack_smp_frame_features(
 ) -> torch.Tensor:
     """将单帧 SMP 特征按照统一顺序拼接成向量。"""
     lead_shape = base_lin_vel_b.shape[:-1]
+    if base_lin_vel_b.shape[-1] != 3:
+        raise ValueError(f"Expected base_lin_vel_b last dim 3, got {base_lin_vel_b.shape[-1]}")
+    if base_ang_vel_b.shape[-1] != 3:
+        raise ValueError(f"Expected base_ang_vel_b last dim 3, got {base_ang_vel_b.shape[-1]}")
     if base_ang_vel_b.shape[:-1] != lead_shape or joint_pos_rel.shape[:-1] != lead_shape:
         raise ValueError("SMP 特征输入的前导维度不一致")
     if ee_pos_b.shape[:-2] != lead_shape or key_body_quat_b.shape[:-2] != lead_shape:

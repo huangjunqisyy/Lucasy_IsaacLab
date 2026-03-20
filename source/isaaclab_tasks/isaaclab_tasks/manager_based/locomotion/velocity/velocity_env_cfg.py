@@ -28,8 +28,8 @@ import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.config.g1.agents.config import (
     g1_ee_names,
     g1_key_body_names,
-    g1_root_name,
     g1_smp_feature_dim,
+    g1_smp_joint_names,
     g1_smp_num_joints,
     g1_smp_window_size,
 )
@@ -242,7 +242,7 @@ class ObservationsCfg:
         motion_frame = ObsTerm(
             func=mdp.smp_frame_features,
             params={
-                "asset_cfg": SceneEntityCfg("robot"),
+                "asset_cfg": SceneEntityCfg("robot", joint_names=g1_smp_joint_names),
                 "ee_asset_cfg": SceneEntityCfg("robot", body_names=g1_ee_names),
                 "key_body_cfg": SceneEntityCfg("robot", body_names=g1_key_body_names),
                 "expected_joint_dim": g1_smp_num_joints,
