@@ -35,6 +35,7 @@ def test_quat_to_rot6d_returns_six_values_per_body():
     rot6d = smp_features.quat_to_rot6d(quat)
 
     assert rot6d.shape == (1, 1, 6)
+    assert torch.allclose(rot6d, torch.tensor([[[1.0, 0.0, 0.0, 1.0, 0.0, 0.0]]]))
 
 
 def test_pack_smp_frame_features_has_expected_dim():

@@ -7,12 +7,31 @@ from __future__ import annotations
 
 import torch
 
-import isaaclab.utils.math as math_utils
+def _matrix_from_quat(quat_wxyz: torch.Tensor) -> torch.Tensor:
+    """使用纯 torch 将四元数转换为旋转矩阵。"""
+    quat_wxyz = quat_wxyz / quat_wxyz.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+    w, x, y, z = quat_wxyz.unbind(dim=-1)
+
+    return torch.stack(
+        (
+            1.0 - 2.0 * (y * y + z * z),
+            2.0 * (x * y - z * w),
+            2.0 * (x * z + y * w),
+            2.0 * (x * y + z * w),
+            1.0 - 2.0 * (x * x + z * z),
+            2.0 * (y * z - x * w),
+            2.0 * (x * z - y * w),
+            2.0 * (y * z + x * w),
+            1.0 - 2.0 * (x * x + y * y),
+        ),
+        dim=-1,
+    ).reshape(*quat_wxyz.shape[:-1], 3, 3)
 
 
 def quat_to_rot6d(quat_wxyz: torch.Tensor) -> torch.Tensor:
     """将四元数转换为 6D 旋转表示。"""
-    mat = math_utils.matrix_from_quat(quat_wxyz.reshape(-1, 4)).reshape(*quat_wxyz.shape[:-1], 3, 3)
+    # 这里保持纯 torch 依赖，避免单元测试被 Isaac/Omni 导入链污染。
+    mat = _matrix_from_quat(quat_wxyz)
     return mat[..., :2].reshape(*quat_wxyz.shape[:-1], 6)
 
 
