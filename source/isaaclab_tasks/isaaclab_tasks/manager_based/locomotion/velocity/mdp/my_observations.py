@@ -24,14 +24,16 @@ def smp_frame_features(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     ee_asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     key_body_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    expected_feature_dim: int | None = None,
 ) -> torch.Tensor:
-    """Compute SMP per-frame features in the robot root frame."""
+    """在机器人根坐标系下提取一帧 SMP 特征。"""
     asset: Articulation = env.scene[asset_cfg.name]
 
     base_lin_vel_b = asset.data.root_lin_vel_b
     base_ang_vel_b = asset.data.root_ang_vel_b
     joint_pos_rel = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
 
+    # 将末端执行器位置转换到根坐标系下。
     ee_pos_w = asset.data.body_pos_w[:, ee_asset_cfg.body_ids]
     ee_quat_w = asset.data.body_quat_w[:, ee_asset_cfg.body_ids]
     root_pos_w = asset.data.root_pos_w.unsqueeze(1)
@@ -39,6 +41,7 @@ def smp_frame_features(
     root_quat_expanded = root_quat_w.expand_as(ee_quat_w)
     ee_pos_b = quat_apply_inverse(root_quat_expanded, ee_pos_w - root_pos_w)
 
+    # 将关键刚体姿态转换到根坐标系下，供 rot6d 打包使用。
     key_body_quat_w = asset.data.body_quat_w[:, key_body_cfg.body_ids]
     root_quat_inv = quat_conjugate(root_quat_w)
     root_quat_inv_expanded = root_quat_inv.expand_as(key_body_quat_w)
@@ -50,4 +53,5 @@ def smp_frame_features(
         joint_pos_rel=joint_pos_rel,
         ee_pos_b=ee_pos_b,
         key_body_quat_b=key_body_quat_b,
+        expected_feature_dim=expected_feature_dim,
     )

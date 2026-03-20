@@ -6,6 +6,7 @@
 import importlib.util
 from pathlib import Path
 
+import pytest
 import torch
 
 
@@ -48,3 +49,17 @@ def test_pack_smp_frame_features_has_expected_dim():
     )
 
     assert features.shape == (2, 131)
+
+
+def test_pack_smp_frame_features_raises_for_unexpected_dim():
+    smp_features = _load_smp_features_module()
+
+    with pytest.raises(ValueError, match="Expected SMP feature dim 130, got 131"):
+        smp_features.pack_smp_frame_features(
+            base_lin_vel_b=torch.zeros(2, 3),
+            base_ang_vel_b=torch.zeros(2, 3),
+            joint_pos_rel=torch.zeros(2, 29),
+            ee_pos_b=torch.zeros(2, 4, 3),
+            key_body_quat_b=torch.tensor([[[1.0, 0.0, 0.0, 0.0]]] * 14, dtype=torch.float32).view(1, 14, 4).repeat(2, 1, 1),
+            expected_feature_dim=130,
+        )
