@@ -242,9 +242,9 @@ class ObservationsCfg:
         motion_frame = ObsTerm(
             func=mdp.smp_frame_features,
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=g1_smp_joint_names),
-                "ee_asset_cfg": SceneEntityCfg("robot", body_names=g1_ee_names),
-                "key_body_cfg": SceneEntityCfg("robot", body_names=g1_key_body_names),
+                "asset_cfg": SceneEntityCfg("robot", joint_names=g1_smp_joint_names, preserve_order=True),
+                "ee_asset_cfg": SceneEntityCfg("robot", body_names=g1_ee_names, preserve_order=True),
+                "key_body_cfg": SceneEntityCfg("robot", body_names=g1_key_body_names, preserve_order=True),
                 "expected_joint_dim": g1_smp_num_joints,
                 "expected_feature_dim": g1_smp_feature_dim,
             },
