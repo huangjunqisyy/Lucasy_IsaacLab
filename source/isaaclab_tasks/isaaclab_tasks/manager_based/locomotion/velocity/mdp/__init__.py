@@ -11,4 +11,5 @@ from .curriculums import *  # noqa: F401, F403
 from .my_observations import *  # noqa: F401, F403
 from .rewards import *  # noqa: F401, F403
 from .smp_features import *  # noqa: F401, F403
+from .smp_reset import *  # noqa: F401, F403
 from .terminations import *  # noqa: F401, F403

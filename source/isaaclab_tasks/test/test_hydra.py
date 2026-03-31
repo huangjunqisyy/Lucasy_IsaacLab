@@ -26,6 +26,7 @@ from omegaconf import OmegaConf
 from isaaclab.utils import replace_strings_with_slices
 
 import isaaclab_tasks  # noqa: F401
+import isaaclab_tasks.manager_based.locomotion.velocity.config.g1  # noqa: F401
 from isaaclab_tasks.utils.hydra import register_task_to_hydra
 
 
@@ -101,5 +102,18 @@ def test_nested_iterable_dict():
 
     main()
     # clean up
+    sys.argv = [sys.argv[0]]
+    hydra.core.global_hydra.GlobalHydra.instance().clear()
+
+
+def test_g1_smp_hydra_registration():
+    @hydra_task_config_test("Isaac-SMP-Velocity-Flat-G1-v0", "rsl_rl_cfg_entry_point")
+    def main(env_cfg, agent_cfg):
+        assert agent_cfg.runner_type == "rsl_rl.runners:SMPOnPolicyRunner"
+        assert agent_cfg.smp_prior.window_size == 10
+        assert agent_cfg.smp_prior.num_diffusion_steps == 50
+        assert agent_cfg.smp_prior.timesteps_k == [22, 15, 8]
+
+    main()
     sys.argv = [sys.argv[0]]
     hydra.core.global_hydra.GlobalHydra.instance().clear()
