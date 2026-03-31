@@ -21,5 +21,6 @@ from .rl_cfg import *
 from .runner_factory import resolve_runner_class
 from .rnd_cfg import RslRlRndCfg
 from .smp_cfg import *
+from .smp_preview import SMPPreviewResetResult, SMPPreviewRuntime, build_smp_preview_runtime, format_preview_reset_summary, sample_and_apply_preview_reset
 from .symmetry_cfg import RslRlSymmetryCfg
 from .vecenv_wrapper import RslRlVecEnvWrapper
