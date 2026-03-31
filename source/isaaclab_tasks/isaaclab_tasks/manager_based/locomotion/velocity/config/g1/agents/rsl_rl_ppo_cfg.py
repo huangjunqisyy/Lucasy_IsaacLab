@@ -5,9 +5,30 @@
 
 from isaaclab.utils import configclass
 
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg, AMPDataCfg
+from isaaclab_rl.rsl_rl import (
+    AMPDataCfg,
+    RslRlOnPolicyRunnerCfg,
+    RslRlPpoActorCriticCfg,
+    RslRlPpoAlgorithmCfg,
+    SMPGSICfg,
+    SMPPriorCfg,
+    SMPRunnerCfg,
+    SMPStyleCfg,
+)
 
-from .config import g1_key_body_names, g1_root_name, g1_ee_names, g1_anchor_name
+from .config import (
+    g1_anchor_name,
+    g1_ee_names,
+    g1_key_body_names,
+    g1_root_name,
+    g1_smp_feature_block_offsets,
+    g1_smp_feature_dim,
+    g1_smp_joint_names,
+    g1_smp_mask_template_name,
+    g1_smp_num_diffusion_steps,
+    g1_smp_timesteps_k,
+    g1_smp_window_size,
+)
 
 @configclass
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -48,6 +69,59 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         self.experiment_name = "g1_flat"
         self.policy.actor_hidden_dims = [256, 128, 128]
         self.policy.critic_hidden_dims = [256, 128, 128]
+
+
+@configclass
+class G1SMPRunnerCfg(SMPRunnerCfg):
+    """G1 SMP locomotion runner 配置。"""
+
+    num_steps_per_env = 24
+    max_iterations = 10000
+    save_interval = 200
+    experiment_name = "g1_smp"
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=1.0,
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
+        actor_hidden_dims=[256, 128, 128],
+        critic_hidden_dims=[256, 128, 128],
+        activation="elu",
+    )
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.008,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-3,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+    smp_prior = SMPPriorCfg(
+        checkpoint_path="logs/smp_prior/g1/pretrain/model_latest.pt",
+        feature_dim=g1_smp_feature_dim,
+        window_size=g1_smp_window_size,
+        num_diffusion_steps=g1_smp_num_diffusion_steps,
+        timesteps_k=g1_smp_timesteps_k,
+        reward_scale=1.0,
+        style_cfg=SMPStyleCfg(
+            mode="single_style",
+            target_style_name="walk",
+            guidance_scale=1.0,
+            mask_name=g1_smp_mask_template_name,
+            feature_block_offsets=g1_smp_feature_block_offsets,
+            joint_name_order=g1_smp_joint_names,
+            ee_name_order=g1_ee_names,
+            key_body_name_order=g1_key_body_names,
+        ),
+    )
+    smp_reward_coef = 0.2
+    task_reward_coef = 1.0
+    gsi_cfg = SMPGSICfg()
 
 @configclass
 class G1AMPRunnerCfg(RslRlOnPolicyRunnerCfg):

@@ -89,3 +89,17 @@ g1_smp_num_joints = len(g1_smp_joint_names)
 g1_smp_feature_dim = 3 + 3 + g1_smp_num_joints + 3 * len(g1_ee_names) + 6 * len(g1_key_body_names)
 g1_smp_num_diffusion_steps = 50
 g1_smp_timesteps_k = [22, 15, 8]
+
+
+g1_smp_feature_block_offsets = {
+    "base_lin_vel_b": (0, 3),
+    "base_ang_vel_b": (3, 6),
+    "joint_pos_rel": (6, 6 + g1_smp_num_joints),
+    "ee_pos_b": (6 + g1_smp_num_joints, 6 + g1_smp_num_joints + 3 * len(g1_ee_names)),
+    "key_body_rot6d": (
+        6 + g1_smp_num_joints + 3 * len(g1_ee_names),
+        g1_smp_feature_dim,
+    ),
+}
+
+g1_smp_mask_template_name = "g1_upper_lower"
