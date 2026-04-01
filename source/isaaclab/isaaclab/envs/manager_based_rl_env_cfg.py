@@ -82,7 +82,7 @@ class ManagerBasedRLEnvCfg(ManagerBasedEnvCfg):
     # ---------------------------------------------------------------------------
     # Get-Up Curriculum settings (disabled by default)
     # ---------------------------------------------------------------------------
-    getup_curriculum: bool = True
+    getup_curriculum: bool = False
     """Whether to enable the assistive get-up curriculum. Defaults to False."""
 
     initial_assist_force: float = 300.0
