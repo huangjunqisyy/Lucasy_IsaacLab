@@ -85,8 +85,31 @@ g1_smp_joint_names = [
     "right_wrist_pitch_joint",
     "right_wrist_yaw_joint",
 ]
+
+
+def _joint_axis_for_name(joint_name: str) -> tuple[float, float, float]:
+    if joint_name.endswith(("hip_roll_joint", "ankle_roll_joint", "waist_roll_joint", "shoulder_roll_joint", "wrist_roll_joint")):
+        return (1.0, 0.0, 0.0)
+    if joint_name.endswith(("hip_yaw_joint", "waist_yaw_joint", "shoulder_yaw_joint", "wrist_yaw_joint")):
+        return (0.0, 0.0, 1.0)
+    if joint_name.endswith(
+        (
+            "hip_pitch_joint",
+            "knee_joint",
+            "ankle_pitch_joint",
+            "waist_pitch_joint",
+            "shoulder_pitch_joint",
+            "elbow_joint",
+            "wrist_pitch_joint",
+        )
+    ):
+        return (0.0, 1.0, 0.0)
+    raise ValueError(f"Unsupported G1 SMP joint axis lookup for joint: {joint_name}")
+
+
+g1_smp_joint_axes = [_joint_axis_for_name(joint_name) for joint_name in g1_smp_joint_names]
 g1_smp_num_joints = len(g1_smp_joint_names)
-g1_smp_feature_dim = 3 + 3 + g1_smp_num_joints + 3 * len(g1_ee_names) + 6 * len(g1_key_body_names)
+g1_smp_feature_dim = 3 + 3 + 6 * g1_smp_num_joints + 3 * len(g1_ee_names)
 g1_smp_num_diffusion_steps = 50
 g1_smp_timesteps_k = [22, 15, 8]
 
@@ -94,12 +117,8 @@ g1_smp_timesteps_k = [22, 15, 8]
 g1_smp_feature_block_offsets = {
     "base_lin_vel_b": (0, 3),
     "base_ang_vel_b": (3, 6),
-    "joint_pos_rel": (6, 6 + g1_smp_num_joints),
-    "ee_pos_b": (6 + g1_smp_num_joints, 6 + g1_smp_num_joints + 3 * len(g1_ee_names)),
-    "key_body_rot6d": (
-        6 + g1_smp_num_joints + 3 * len(g1_ee_names),
-        g1_smp_feature_dim,
-    ),
+    "joint_rot6d_rel": (6, 6 + 6 * g1_smp_num_joints),
+    "ee_pos_b": (6 + 6 * g1_smp_num_joints, g1_smp_feature_dim),
 }
 
 g1_smp_mask_template_name = "g1_upper_lower"

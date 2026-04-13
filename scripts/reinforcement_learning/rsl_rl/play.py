@@ -34,6 +34,30 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+parser.add_argument(
+    "--dump_smp_windows",
+    action="store_true",
+    default=False,
+    help="Collect rollout `smp_motion_window` observations and save them as a policy dataset.",
+)
+parser.add_argument(
+    "--dump_smp_windows_output",
+    type=str,
+    default=None,
+    help="Output npz path for collected `smp_motion_window` policy windows.",
+)
+parser.add_argument(
+    "--dump_smp_windows_steps",
+    type=int,
+    default=None,
+    help="Optional number of rollout steps to collect before exiting.",
+)
+parser.add_argument(
+    "--dump_smp_windows_group",
+    type=str,
+    default="smp_motion_window",
+    help="Observation group name used for SMP rollout collection.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -58,8 +82,6 @@ import os
 import time
 import torch
 
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
-
 from isaaclab.envs import (
     DirectMARLEnv,
     DirectMARLEnvCfg,
@@ -71,7 +93,14 @@ from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
 
-from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper, export_policy_as_jit, export_policy_as_onnx
+from isaaclab_rl.rsl_rl import (
+    RslRlBaseRunnerCfg,
+    RslRlVecEnvWrapper,
+    export_policy_as_jit,
+    export_policy_as_onnx,
+    resolve_runner_class,
+)
+from isaaclab_rl.rsl_rl.smp_diagnostics import build_window_collector_from_observation
 
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path
@@ -139,12 +168,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
-    if agent_cfg.class_name == "OnPolicyRunner":
-        runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    elif agent_cfg.class_name == "DistillationRunner":
-        runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    else:
-        raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+    runner_class = resolve_runner_class(agent_cfg)
+    runner = runner_class(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     runner.load(resume_path)
 
     # obtain the trained policy for inference
@@ -173,29 +198,54 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
 
     dt = env.unwrapped.step_dt
+    smp_collector = None
+    smp_steps_collected = 0
+    if args_cli.dump_smp_windows and not hasattr(agent_cfg, "smp_prior"):
+        raise ValueError("`--dump_smp_windows` requires an agent configuration with `smp_prior.window_size`.")
 
     # reset environment
     obs = env.get_observations()
     timestep = 0
     # simulate environment
-    while simulation_app.is_running():
-        start_time = time.time()
-        # run everything in inference mode
-        with torch.inference_mode():
-            # agent stepping
-            actions = policy(obs)
-            # env stepping
-            obs, _, _, _ = env.step(actions)
-        if args_cli.video:
-            timestep += 1
-            # Exit the play loop after recording one video
-            if timestep == args_cli.video_length:
-                break
+    try:
+        while simulation_app.is_running():
+            start_time = time.time()
+            # run everything in inference mode
+            with torch.inference_mode():
+                # agent stepping
+                actions = policy(obs)
+                # env stepping
+                obs, _, _, _ = env.step(actions)
 
-        # time delay for real-time evaluation
-        sleep_time = dt - (time.time() - start_time)
-        if args_cli.real_time and sleep_time > 0:
-            time.sleep(sleep_time)
+            if args_cli.dump_smp_windows:
+                if smp_collector is None:
+                    smp_collector = build_window_collector_from_observation(
+                        obs,
+                        obs_group=args_cli.dump_smp_windows_group,
+                        window_size=int(agent_cfg.smp_prior.window_size),
+                    )
+                smp_collector.add(obs)
+                smp_steps_collected += 1
+                if args_cli.dump_smp_windows_steps is not None and smp_steps_collected >= args_cli.dump_smp_windows_steps:
+                    break
+
+            if args_cli.video:
+                timestep += 1
+                # Exit the play loop after recording one video
+                if timestep == args_cli.video_length:
+                    break
+
+            # time delay for real-time evaluation
+            sleep_time = dt - (time.time() - start_time)
+            if args_cli.real_time and sleep_time > 0:
+                time.sleep(sleep_time)
+    finally:
+        if smp_collector is not None and smp_collector.num_steps_recorded > 0:
+            output_path = args_cli.dump_smp_windows_output
+            if output_path is None:
+                output_path = os.path.join(log_dir, "play", "smp_policy_windows.npz")
+            saved_path = smp_collector.save(output_path)
+            print(f"[INFO] Saved SMP policy windows to: {saved_path}")
 
     # close the simulator
     env.close()

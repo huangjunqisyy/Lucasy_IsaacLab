@@ -23,6 +23,7 @@ from .config import (
     g1_root_name,
     g1_smp_feature_block_offsets,
     g1_smp_feature_dim,
+    g1_smp_joint_axes,
     g1_smp_joint_names,
     g1_smp_mask_template_name,
     g1_smp_num_diffusion_steps,
@@ -83,8 +84,8 @@ class G1SMPRunnerCfg(SMPRunnerCfg):
         init_noise_std=1.0,
         actor_obs_normalization=False,
         critic_obs_normalization=False,
-        actor_hidden_dims=[256, 128, 128],
-        critic_hidden_dims=[256, 128, 128],
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
@@ -102,7 +103,7 @@ class G1SMPRunnerCfg(SMPRunnerCfg):
         max_grad_norm=1.0,
     )
     smp_prior = SMPPriorCfg(
-        checkpoint_path="logs/smp_prior/g1/pretrain/model_latest.pt",
+        checkpoint_path="logs/smp_prior/g1/pretrain_407/model_latest.pt",
         feature_dim=g1_smp_feature_dim,
         window_size=g1_smp_window_size,
         num_diffusion_steps=g1_smp_num_diffusion_steps,
@@ -115,6 +116,7 @@ class G1SMPRunnerCfg(SMPRunnerCfg):
             mask_name=g1_smp_mask_template_name,
             feature_block_offsets=g1_smp_feature_block_offsets,
             joint_name_order=g1_smp_joint_names,
+            joint_axes=g1_smp_joint_axes,
             ee_name_order=g1_ee_names,
             key_body_name_order=g1_key_body_names,
         ),
