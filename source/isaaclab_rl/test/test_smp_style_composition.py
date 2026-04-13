@@ -22,6 +22,24 @@ def _load_module(relative_parts: tuple[str, ...], module_name: str):
     raise FileNotFoundError(f"Could not find module: {'/'.join(relative_parts)}")
 
 
+def _load_g1_config_module():
+    return _load_module(
+        (
+            "source",
+            "isaaclab_tasks",
+            "isaaclab_tasks",
+            "manager_based",
+            "locomotion",
+            "velocity",
+            "config",
+            "g1",
+            "agents",
+            "config.py",
+        ),
+        "isaaclab_g1_cfg_unit",
+    )
+
+
 def test_body_mask_style_composition_blends_feature_groups():
     composition = _load_module(("rsl_rl", "rsl_rl", "diffusion", "composition.py"), "isaaclab_smp_composition_unit")
     eps_a = torch.tensor([[[1.0, 1.0, 1.0, 1.0]]])
@@ -39,23 +57,7 @@ def test_body_mask_style_composition_blends_feature_groups():
 
 def test_g1_upper_lower_mask_template_is_disjoint_and_exhaustive():
     composition = _load_module(("rsl_rl", "rsl_rl", "diffusion", "composition.py"), "isaaclab_smp_composition_unit")
-    g1_config = _load_module(
-        (
-            ".worktrees",
-            "g1-smp-diffusion",
-            "source",
-            "isaaclab_tasks",
-            "isaaclab_tasks",
-            "manager_based",
-            "locomotion",
-            "velocity",
-            "config",
-            "g1",
-            "agents",
-            "config.py",
-        ),
-        "isaaclab_g1_cfg_unit",
-    )
+    g1_config = _load_g1_config_module()
 
     masks = composition.build_g1_body_part_feature_masks(
         mask_name=g1_config.g1_smp_mask_template_name,
@@ -70,3 +72,4 @@ def test_g1_upper_lower_mask_template_is_disjoint_and_exhaustive():
     )
 
     assert torch.all(stacked.sum(dim=0) == 1)
+    assert int(masks["shared_body"].sum().item()) == 24

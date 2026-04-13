@@ -21,6 +21,7 @@ class SMPStyleCfg:
     body_part_style_names: dict[str, str] = field(default_factory=lambda: {"upper_body": "a", "lower_body": "c"})
     feature_block_offsets: dict[str, tuple[int, int]] = field(default_factory=dict)
     joint_name_order: list[str] = field(default_factory=list)
+    joint_axes: list[tuple[float, float, float]] = field(default_factory=list)
     ee_name_order: list[str] = field(default_factory=list)
     key_body_name_order: list[str] = field(default_factory=list)
 
@@ -43,6 +44,7 @@ class SMPPriorCfg:
     feature_dim: int = MISSING
     num_diffusion_steps: int = 50
     timesteps_k: list[int] = MISSING
+    reward_mode: str = "target_vs_uncond"
     reward_scale: float = 1.0
     adaptive_norm_decay: float = 0.99
     log_histograms_every: int = 20

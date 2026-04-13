@@ -61,6 +61,44 @@ def test_quat_to_rot6d_preserves_row_major_first_two_columns_order():
     assert torch.allclose(rot6d, expected, atol=1e-5)
 
 
+def test_heading_frame_maps_world_up_to_local_y_axis():
+    # heading-local 坐标系要求 local y 与全局 up 对齐。
+    smp_features = _load_smp_features_module()
+    rotation = smp_features.build_heading_frame_rotation(torch.tensor([[1.0, 0.0, 0.0, 0.0]], dtype=torch.float32))
+
+    local_up = smp_features.world_to_local_frame(
+        rotation,
+        torch.tensor([[0.0, 0.0, 1.0]], dtype=torch.float32),
+    )
+
+    assert torch.allclose(local_up, torch.tensor([[0.0, 1.0, 0.0]], dtype=torch.float32), atol=1e-5)
+
+
+def test_joint_angle_offsets_to_rot6d_uses_relative_default_pose():
+    # 单关节 rot6d 应编码 joint_pos - default_joint_pos 的相对旋转。
+    smp_features = _load_smp_features_module()
+
+    rot6d = smp_features.joint_angle_offsets_to_rot6d(
+        torch.tensor([[math.pi / 2]], dtype=torch.float32),
+        torch.tensor([[0.0, 1.0, 0.0]], dtype=torch.float32),
+    )
+
+    expected = torch.tensor([[[0.0, 0.0, 0.0, 1.0, -1.0, 0.0]]], dtype=torch.float32)
+    assert torch.allclose(rot6d, expected, atol=1e-5)
+
+
+def test_joint_rot6d_roundtrip_recovers_single_axis_offsets():
+    # GSI 需要把 joint rot6d 反解为单轴关节角偏移。
+    smp_features = _load_smp_features_module()
+    offsets = torch.tensor([[0.3, -0.5]], dtype=torch.float32)
+    axes = torch.tensor([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], dtype=torch.float32)
+
+    rot6d = smp_features.joint_angle_offsets_to_rot6d(offsets, axes)
+    recovered = smp_features.joint_rot6d_to_angle_offsets(rot6d, axes)
+
+    assert torch.allclose(recovered, offsets, atol=1e-5)
+
+
 def test_pack_smp_frame_features_has_expected_dim():
     # 验证单帧特征打包后的最终维度与设计值一致。
     smp_features = _load_smp_features_module()
@@ -68,26 +106,24 @@ def test_pack_smp_frame_features_has_expected_dim():
     features = smp_features.pack_smp_frame_features(
         base_lin_vel_b=torch.zeros(2, 3),
         base_ang_vel_b=torch.zeros(2, 3),
-        joint_pos_rel=torch.zeros(2, 29),
+        joint_rot6d_rel=torch.zeros(2, 29, 6),
         ee_pos_b=torch.zeros(2, 4, 3),
-        key_body_quat_b=_identity_key_body_quat(2),
     )
 
-    assert features.shape == (2, 131)
+    assert features.shape == (2, 192)
 
 
 def test_pack_smp_frame_features_raises_for_unexpected_dim():
     # 维度约束回归：当期望维度不匹配时应抛出明确异常。
     smp_features = _load_smp_features_module()
 
-    with pytest.raises(ValueError, match="Expected SMP feature dim 130, got 131"):
+    with pytest.raises(ValueError, match="Expected SMP feature dim 191, got 192"):
         smp_features.pack_smp_frame_features(
             base_lin_vel_b=torch.zeros(2, 3),
             base_ang_vel_b=torch.zeros(2, 3),
-            joint_pos_rel=torch.zeros(2, 29),
+            joint_rot6d_rel=torch.zeros(2, 29, 6),
             ee_pos_b=torch.zeros(2, 4, 3),
-            key_body_quat_b=_identity_key_body_quat(2),
-            expected_feature_dim=130,
+            expected_feature_dim=191,
         )
 
 
@@ -98,10 +134,9 @@ def test_pack_smp_frame_features_supports_multiple_leading_dims():
     features = smp_features.pack_smp_frame_features(
         base_lin_vel_b=torch.zeros(2, 5, 3),
         base_ang_vel_b=torch.zeros(2, 5, 3),
-        joint_pos_rel=torch.zeros(2, 5, 29),
+        joint_rot6d_rel=torch.zeros(2, 5, 29, 6),
         ee_pos_b=torch.zeros(2, 5, 4, 3),
-        key_body_quat_b=_identity_key_body_quat(2, 5),
-        expected_feature_dim=131,
+        expected_feature_dim=192,
     )
 
-    assert features.shape == (2, 5, 131)
+    assert features.shape == (2, 5, 192)

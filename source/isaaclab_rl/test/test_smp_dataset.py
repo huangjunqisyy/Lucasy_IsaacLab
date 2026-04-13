@@ -47,7 +47,7 @@ def test_smp_dataset_builds_sliding_windows(tmp_path):
     np.savez(
         path,
         fps=np.array([30]),
-        frames=np.random.randn(12, 131).astype(np.float32),
+        frames=np.random.randn(12, 192).astype(np.float32),
     )
 
     dataset = smp_dataset.SMPMotionWindowDataset(path, window_size=10, stride=1)
@@ -55,7 +55,7 @@ def test_smp_dataset_builds_sliding_windows(tmp_path):
     assert len(dataset) == 3
     sample = dataset[0]
     assert set(sample.keys()) == {"motion", "style_id", "style_name", "clip_id", "source_name"}
-    assert sample["motion"].shape == (10, 131)
+    assert sample["motion"].shape == (10, 192)
     assert sample["style_id"] is None
     assert sample["style_name"] is None
 
@@ -65,8 +65,8 @@ def test_smp_dataset_reads_multi_style_manifest_and_returns_metadata(tmp_path):
     smp_dataset = _load_smp_dataset_module()
     data_dir = tmp_path / "corpus"
     data_dir.mkdir()
-    np.savez(data_dir / "walk_a.npz", fps=np.array([30]), frames=np.random.randn(12, 131).astype(np.float32))
-    np.savez(data_dir / "walk_b.npz", fps=np.array([30]), frames=np.random.randn(13, 131).astype(np.float32))
+    np.savez(data_dir / "walk_a.npz", fps=np.array([30]), frames=np.random.randn(12, 192).astype(np.float32))
+    np.savez(data_dir / "walk_b.npz", fps=np.array([30]), frames=np.random.randn(13, 192).astype(np.float32))
     manifest_path = data_dir / "corpus_manifest.json"
     manifest_path.write_text(
         json.dumps(
@@ -86,7 +86,7 @@ def test_smp_dataset_reads_multi_style_manifest_and_returns_metadata(tmp_path):
     first = dataset[0]
     last = dataset[-1]
     assert set(first.keys()) == {"motion", "style_id", "style_name", "clip_id", "source_name"}
-    assert first["motion"].shape == (10, 131)
+    assert first["motion"].shape == (10, 192)
     assert first["style_id"] == 0
     assert first["style_name"] == "walk"
     assert first["source_name"] == "walk_a"
@@ -123,13 +123,61 @@ def test_export_g1_motion_dataset_writes_frames_and_metadata(tmp_path):
     )
 
     with np.load(output_path) as data:
-        assert data["frames"].shape == (12, 131)
+        assert data["frames"].shape == (12, 192)
         assert int(data["window_size"][0]) == 10
         assert int(data["stride"][0]) == 2
-        assert int(data["feature_dim"][0]) == 131
+        assert int(data["feature_dim"][0]) == 192
+        assert data["joint_axes"].shape == (29, 3)
         assert str(data["style_name"].reshape(-1)[0]) == "walk"
         assert int(data["style_id"].reshape(-1)[0]) == 3
         assert str(data["source_name"].reshape(-1)[0]) == "walk_a"
+
+
+def test_export_g1_motion_dataset_prints_output_field_shapes_in_order(tmp_path, capsys):
+    # 导出完成后应按写入顺序打印输出 npz 的字段名和 shape，便于终端检查。
+    exporter = _load_export_g1_motion_dataset_module()
+    input_path = tmp_path / "raw_motion.npz"
+    output_path = tmp_path / "smp_frames.npz"
+    body_quat_w = np.zeros((12, 30, 4), dtype=np.float32)
+    body_quat_w[..., 0] = 1.0
+
+    np.savez(
+        input_path,
+        fps=np.array([30], dtype=np.int64),
+        joint_pos=np.zeros((12, 29), dtype=np.float32),
+        joint_vel=np.zeros((12, 29), dtype=np.float32),
+        body_pos_w=np.zeros((12, 30, 3), dtype=np.float32),
+        body_quat_w=body_quat_w,
+        body_lin_vel_w=np.zeros((12, 30, 3), dtype=np.float32),
+        body_ang_vel_w=np.zeros((12, 30, 3), dtype=np.float32),
+    )
+
+    exporter.export_g1_motion_dataset(
+        input_path=input_path,
+        output_path=output_path,
+        window_size=10,
+        stride=2,
+        style_name="walk",
+        style_id=3,
+        source_name="walk_a",
+    )
+
+    captured = capsys.readouterr().out.strip().splitlines()
+
+    assert captured == [
+        f"output_npz: {output_path}",
+        "frames: (12, 192)",
+        "fps: (1,)",
+        "window_size: (1,)",
+        "stride: (1,)",
+        "feature_dim: (1,)",
+        "joint_names: (29,)",
+        "joint_axes: (29, 3)",
+        "ee_names: (4,)",
+        "style_name: (1,)",
+        "style_id: (1,)",
+        "source_name: (1,)",
+    ]
 
 
 def test_export_g1_motion_dataset_requires_window_size_argument():

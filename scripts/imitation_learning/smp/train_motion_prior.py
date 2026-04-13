@@ -49,7 +49,7 @@ def _build_argparser() -> argparse.ArgumentParser:
         type=int,
         nargs="+",
         default=[22, 15, 8],
-        help="训练与日志使用的固定扩散时间步集合。",
+        help="SMP reward / 预训练诊断使用的固定扩散时间步集合；预训练采样始终在 [0, N) 全范围均匀采样。",
     )
     parser.add_argument("--device", default=None, help="显式指定训练设备，例如 cpu 或 cuda:0。")
     return parser

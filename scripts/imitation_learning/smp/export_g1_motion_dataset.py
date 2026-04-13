@@ -55,10 +55,11 @@ _G1_CONFIG_MODULE = _load_module(
 
 # 从已加载模块中提取运行时所需的“单一真值”配置，
 # 让数据导出脚本与训练配置保持一致，避免手动复制参数导致偏差。
+build_smp_feature_components = _SMP_FEATURES_MODULE.build_smp_feature_components
 pack_smp_frame_features = _SMP_FEATURES_MODULE.pack_smp_frame_features
 g1_ee_names = list(_G1_CONFIG_MODULE.g1_ee_names)
-g1_key_body_names = list(_G1_CONFIG_MODULE.g1_key_body_names)
 g1_smp_feature_dim = int(_G1_CONFIG_MODULE.g1_smp_feature_dim)
+g1_smp_joint_axes = [tuple(axis) for axis in _G1_CONFIG_MODULE.g1_smp_joint_axes]
 g1_smp_joint_names = list(_G1_CONFIG_MODULE.g1_smp_joint_names)
 g1_smp_window_size = int(_G1_CONFIG_MODULE.g1_smp_window_size)
 
@@ -99,7 +100,7 @@ _G1_MOTION_BODY_ORDER = [
 _G1_BODY_NAME_TO_INDEX = {name: idx for idx, name in enumerate(_G1_MOTION_BODY_ORDER)}
 
 # 构造“默认关节位姿”时使用的规则。
-# 这些值通常对应机器人自然站立姿态，用于把绝对关节角转成相对偏移（joint_pos_rel）。
+# 这些值通常对应机器人自然站立姿态，用于把绝对关节角转成相对默认站姿的旋转。
 _G1_DEFAULT_JOINT_POS_RULES = (
     ("left_hip_pitch_joint", -0.1),
     ("right_hip_pitch_joint", -0.1),
@@ -112,43 +113,6 @@ _G1_DEFAULT_JOINT_POS_RULES = (
     ("left_wrist_roll_joint", 0.15),
     ("right_wrist_roll_joint", -0.15),
 )
-
-
-def _quat_conjugate(quat_wxyz: torch.Tensor) -> torch.Tensor:
-    # 四元数共轭: q* = [w, -x, -y, -z]
-    # 在单位四元数下，q* 等价于 q^{-1}。
-    return torch.cat((quat_wxyz[..., :1], -quat_wxyz[..., 1:]), dim=-1)
-
-
-def _quat_mul(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
-    # Hamilton 乘法，输入输出均为 wxyz 排列。
-    # 支持批量维度，最后一维为 4。
-    lw, lx, ly, lz = lhs.unbind(dim=-1)
-    rw, rx, ry, rz = rhs.unbind(dim=-1)
-    return torch.stack(
-        (
-            lw * rw - lx * rx - ly * ry - lz * rz,
-            lw * rx + lx * rw + ly * rz - lz * ry,
-            lw * ry - lx * rz + ly * rw + lz * rx,
-            lw * rz + lx * ry - ly * rx + lz * rw,
-        ),
-        dim=-1,
-    )
-
-
-def _quat_apply(quat_wxyz: torch.Tensor, vec_xyz: torch.Tensor) -> torch.Tensor:
-    # 将向量 vec 旋转到 quat 对应姿态的坐标系。
-    # 使用向量形式实现（叉乘），避免显式构造 [0, v] 四元数。
-    quat_xyz = quat_wxyz[..., 1:]
-    uv = torch.cross(quat_xyz, vec_xyz, dim=-1)
-    uuv = torch.cross(quat_xyz, uv, dim=-1)
-    return vec_xyz + 2.0 * (quat_wxyz[..., :1] * uv + uuv)
-
-
-def _quat_apply_inverse(quat_wxyz: torch.Tensor, vec_xyz: torch.Tensor) -> torch.Tensor:
-    # 使用 q^{-1} 进行旋转，等价于把世界系向量变换到 body 系。
-    return _quat_apply(_quat_conjugate(quat_wxyz), vec_xyz)
-
 
 def _build_default_joint_pos(joint_names: list[str]) -> torch.Tensor:
     # 根据关节名匹配规则生成默认位姿向量，未匹配到的关节默认 0。
@@ -207,39 +171,27 @@ def _build_smp_frames_from_raw_motion(raw_motion: dict[str, np.ndarray]) -> torc
     # 通过名称映射索引，保证即使索引常量变动也能按语义取数据。
     root_body_index = _G1_BODY_NAME_TO_INDEX["pelvis"]
     ee_body_ids = [_G1_BODY_NAME_TO_INDEX[name] for name in g1_ee_names]
-    key_body_ids = [_G1_BODY_NAME_TO_INDEX[name] for name in g1_key_body_names]
     default_joint_pos = _build_default_joint_pos(g1_smp_joint_names).to(joint_pos.device)
+    joint_axes = torch.tensor(g1_smp_joint_axes, dtype=torch.float32, device=joint_pos.device)
 
-    # Root 基座特征: 世界系速度 -> 基座系速度。
-    root_pos_w = body_pos_w[:, root_body_index]
-    root_quat_w = body_quat_w[:, root_body_index]
-    base_lin_vel_b = _quat_apply_inverse(root_quat_w, body_lin_vel_w[:, root_body_index])
-    base_ang_vel_b = _quat_apply_inverse(root_quat_w, body_ang_vel_w[:, root_body_index])
-
-    # 关节特征: 使用相对默认姿态的偏移，减少静态姿态偏置。
-    joint_pos_rel = joint_pos - default_joint_pos.unsqueeze(0)
-
-    # EE 位置特征: 先做平移到 root 原点，再旋转到 root/body 坐标系。
-    ee_pos_w = body_pos_w[:, ee_body_ids]
-    ee_pos_b = _quat_apply_inverse(
-        root_quat_w.unsqueeze(1).expand(-1, len(ee_body_ids), -1),
-        ee_pos_w - root_pos_w.unsqueeze(1),
-    )
-
-    # 关键 body 朝向特征: q_key_in_root = q_root^{-1} * q_key。
-    key_body_quat_w = body_quat_w[:, key_body_ids]
-    key_body_quat_b = _quat_mul(
-        _quat_conjugate(root_quat_w).unsqueeze(1).expand(-1, len(key_body_ids), -1),
-        key_body_quat_w,
+    # 统一复用共享 helper，确保离线导出和在线环境观测的坐标变换语义一致。
+    feature_components = build_smp_feature_components(
+        root_pos_w=body_pos_w[:, root_body_index],
+        root_quat_w=body_quat_w[:, root_body_index],
+        root_lin_vel_w=body_lin_vel_w[:, root_body_index],
+        root_ang_vel_w=body_ang_vel_w[:, root_body_index],
+        joint_pos=joint_pos,
+        default_joint_pos=default_joint_pos,
+        joint_axes=joint_axes,
+        ee_pos_w=body_pos_w[:, ee_body_ids],
     )
 
     # 统一由 pack 函数按固定顺序拼接特征，并校验 feature 维度。
     return pack_smp_frame_features(
-        base_lin_vel_b=base_lin_vel_b,
-        base_ang_vel_b=base_ang_vel_b,
-        joint_pos_rel=joint_pos_rel,
-        ee_pos_b=ee_pos_b,
-        key_body_quat_b=key_body_quat_b,
+        base_lin_vel_b=feature_components["base_lin_vel_b"],
+        base_ang_vel_b=feature_components["base_ang_vel_b"],
+        joint_rot6d_rel=feature_components["joint_rot6d_rel"],
+        ee_pos_b=feature_components["ee_pos_b"],
         expected_feature_dim=g1_smp_feature_dim,
     )
 
@@ -287,8 +239,8 @@ def export_g1_motion_dataset(
         "stride": np.array([stride], dtype=np.int64),
         "feature_dim": np.array([frames.shape[-1]], dtype=np.int64),
         "joint_names": np.asarray(g1_smp_joint_names),
+        "joint_axes": np.asarray(g1_smp_joint_axes, dtype=np.float32),
         "ee_names": np.asarray(g1_ee_names),
-        "key_body_names": np.asarray(g1_key_body_names),
     }
     if style_name is not None:
         save_payload["style_name"] = np.asarray([style_name], dtype=np.str_)
@@ -297,7 +249,15 @@ def export_g1_motion_dataset(
     if source_name is not None:
         save_payload["source_name"] = np.asarray([source_name], dtype=np.str_)
     np.savez(output_path, **save_payload)
+    _print_output_npz_summary(output_path, save_payload)
     return output_path
+
+
+def _print_output_npz_summary(output_path: Path, save_payload: dict[str, np.ndarray]) -> None:
+    """按写入顺序打印输出 npz 的字段和 shape。"""
+    print(f"output_npz: {output_path}")
+    for name, value in save_payload.items():
+        print(f"{name}: {value.shape}")
 
 
 def _build_argparser() -> argparse.ArgumentParser:

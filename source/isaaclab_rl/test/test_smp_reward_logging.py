@@ -5,6 +5,8 @@
 
 import importlib.util
 from pathlib import Path
+import sys
+import types
 
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch.utils.tensorboard import SummaryWriter
@@ -24,6 +26,37 @@ def _load_diffusion_module(module_name: str):
             spec.loader.exec_module(module)
             return module
     raise FileNotFoundError(f"Could not find rsl_rl/rsl_rl/diffusion/{module_name}.py")
+
+
+def _load_smp_cfg_module():
+    fake_isaaclab = types.ModuleType("isaaclab")
+    fake_isaaclab.__path__ = []
+    fake_utils = types.ModuleType("isaaclab.utils")
+    fake_utils.configclass = lambda cls: cls
+
+    fake_package = types.ModuleType("isaaclab_rl")
+    fake_package.__path__ = []
+    fake_subpackage = types.ModuleType("isaaclab_rl.rsl_rl")
+    fake_subpackage.__path__ = []
+    fake_rl_cfg = types.ModuleType("isaaclab_rl.rsl_rl.rl_cfg")
+    fake_rl_cfg.RslRlOnPolicyRunnerCfg = object
+
+    sys.modules.setdefault("isaaclab", fake_isaaclab)
+    sys.modules.setdefault("isaaclab.utils", fake_utils)
+    sys.modules.setdefault("isaaclab_rl", fake_package)
+    sys.modules.setdefault("isaaclab_rl.rsl_rl", fake_subpackage)
+    sys.modules.setdefault("isaaclab_rl.rsl_rl.rl_cfg", fake_rl_cfg)
+
+    for parent in Path(__file__).resolve().parents:
+        module_path = parent / "source" / "isaaclab_rl" / "isaaclab_rl" / "rsl_rl" / "smp_cfg.py"
+        if module_path.exists():
+            spec = importlib.util.spec_from_file_location("isaaclab_rl.rsl_rl.smp_cfg", module_path)
+            assert spec is not None
+            module = importlib.util.module_from_spec(spec)
+            assert spec.loader is not None
+            spec.loader.exec_module(module)
+            return module
+    raise FileNotFoundError("Could not find source/isaaclab_rl/isaaclab_rl/rsl_rl/smp_cfg.py")
 
 
 def test_log_smp_pretrain_metrics_writes_noise_tags(tmp_path):
@@ -54,7 +87,9 @@ def test_log_smp_pretrain_metrics_writes_noise_tags(tmp_path):
 def test_smp_reward_uses_fixed_timestep_ensemble():
     # 验证奖励计算使用固定时间步集合并返回逐时间步误差统计。
     reward_module = _load_diffusion_module("smp_reward")
-    rewarder = reward_module.SMPReward(num_diffusion_steps=50, timesteps_k=[22, 15, 8], reward_scale=1.0)
+    rewarder = reward_module.SMPReward(
+        num_diffusion_steps=50, timesteps_k=[22, 15, 8], reward_scale=1.0, reward_mode="absolute"
+    )
     eps = {
         22: torch.zeros(4, 10, 131),
         15: torch.zeros(4, 10, 131),
@@ -70,6 +105,43 @@ def test_smp_reward_uses_fixed_timestep_ensemble():
 
     assert out["reward"].shape == (4,)
     assert set(out["per_timestep_mse"].keys()) == {22, 15, 8}
+
+
+def test_smp_reward_target_vs_uncond_rewards_target_advantage():
+    reward_module = _load_diffusion_module("smp_reward")
+    rewarder = reward_module.SMPReward(
+        num_diffusion_steps=50, timesteps_k=[22, 15, 8], reward_scale=1.0, reward_mode="target_vs_uncond"
+    )
+    eps = {
+        22: torch.zeros(4, 10, 131),
+        15: torch.zeros(4, 10, 131),
+        8: torch.zeros(4, 10, 131),
+    }
+    eps_hat_target = {
+        22: torch.full((4, 10, 131), 0.5),
+        15: torch.full((4, 10, 131), 0.5),
+        8: torch.full((4, 10, 131), 0.5),
+    }
+    eps_hat_uncond = {
+        22: torch.ones(4, 10, 131),
+        15: torch.ones(4, 10, 131),
+        8: torch.ones(4, 10, 131),
+    }
+
+    out = rewarder.compute(eps=eps, eps_hat=eps_hat_target, eps_hat_uncond=eps_hat_uncond)
+
+    assert out["reward"].shape == (4,)
+    reward_target = torch.exp(torch.tensor(-0.25))
+    reward_uncond = torch.exp(torch.tensor(-1.0))
+    expected_reward = ((reward_target - reward_uncond) / (1.0 - reward_uncond).clamp_min(1.0e-6)).clamp(0.0, 1.0)
+    assert torch.allclose(out["reward"], torch.full((4,), expected_reward))
+    assert out["noise_mse"].shape == (4,)
+
+
+def test_smp_prior_cfg_defaults_to_absolute_reward_mode():
+    cfg_module = _load_smp_cfg_module()
+
+    assert cfg_module.SMPPriorCfg.reward_mode == "absolute"
 
 
 def test_log_smp_noise_metrics_writes_timestep_histogram_tags(tmp_path):
