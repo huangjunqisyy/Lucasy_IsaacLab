@@ -1,0 +1,88 @@
+{
+  "datasets": [
+    {
+      "name": "walk1_subject1",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk1_subject1.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk1_subject2",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk1_subject2.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk1_subject5",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk1_subject5.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk2_subject1",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk2_subject1.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk2_subject3",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk2_subject3.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk2_subject4",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk2_subject4.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject1",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject1.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject2",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject2.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject3",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject3.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject4",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject4.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject5",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject5.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    },
+    {
+      "name": "walk4_subject1",
+      "path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk4_subject1.npz",
+      "style": "walk",
+      "style_id": 0,
+      "weight": 1.0
+    }
+  ]
+}

@@ -1,0 +1,406 @@
+{
+  "num_files": 40,
+  "feature_dim": 192,
+  "files": [
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance1_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance1_subject1.npz",
+      "raw_frames": 3945,
+      "exported_frames": 6574,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 12,
+      "verify_windows": 6565
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance1_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance1_subject2.npz",
+      "raw_frames": 3945,
+      "exported_frames": 6574,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 9,
+      "verify_windows": 6565
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance1_subject3.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance1_subject3.npz",
+      "raw_frames": 3945,
+      "exported_frames": 6574,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 4,
+      "verify_windows": 6565
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance2_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance2_subject1.npz",
+      "raw_frames": 6771,
+      "exported_frames": 11284,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 9,
+      "verify_windows": 11275
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance2_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance2_subject2.npz",
+      "raw_frames": 6771,
+      "exported_frames": 11284,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 7,
+      "verify_windows": 11275
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance2_subject3.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance2_subject3.npz",
+      "raw_frames": 6771,
+      "exported_frames": 11284,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 5,
+      "verify_windows": 11275
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance2_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance2_subject4.npz",
+      "raw_frames": 6771,
+      "exported_frames": 11284,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 7,
+      "verify_windows": 11275
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/dance2_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/dance2_subject5.npz",
+      "raw_frames": 6771,
+      "exported_frames": 11284,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 10,
+      "verify_windows": 11275
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fallAndGetUp1_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fallAndGetUp1_subject1.npz",
+      "raw_frames": 5047,
+      "exported_frames": 8411,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 2,
+      "verify_windows": 8402
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fallAndGetUp1_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fallAndGetUp1_subject4.npz",
+      "raw_frames": 5047,
+      "exported_frames": 8411,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 14,
+      "verify_windows": 8402
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fallAndGetUp1_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fallAndGetUp1_subject5.npz",
+      "raw_frames": 5047,
+      "exported_frames": 8411,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 22,
+      "verify_windows": 8402
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fallAndGetUp2_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fallAndGetUp2_subject2.npz",
+      "raw_frames": 4918,
+      "exported_frames": 8196,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 7,
+      "verify_windows": 8187
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fallAndGetUp2_subject3.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fallAndGetUp2_subject3.npz",
+      "raw_frames": 4918,
+      "exported_frames": 8196,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 1,
+      "verify_windows": 8187
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fallAndGetUp3_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fallAndGetUp3_subject1.npz",
+      "raw_frames": 3066,
+      "exported_frames": 5109,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 5,
+      "verify_windows": 5100
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fight1_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fight1_subject2.npz",
+      "raw_frames": 7347,
+      "exported_frames": 12244,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 69,
+      "verify_windows": 12235
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fight1_subject3.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fight1_subject3.npz",
+      "raw_frames": 7347,
+      "exported_frames": 12244,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 13,
+      "verify_windows": 12235
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fight1_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fight1_subject5.npz",
+      "raw_frames": 7347,
+      "exported_frames": 12244,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 34,
+      "verify_windows": 12235
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fightAndSports1_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fightAndSports1_subject1.npz",
+      "raw_frames": 7355,
+      "exported_frames": 12257,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 24,
+      "verify_windows": 12248
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/fightAndSports1_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/fightAndSports1_subject4.npz",
+      "raw_frames": 7355,
+      "exported_frames": 12257,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 8,
+      "verify_windows": 12248
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/jumps1_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/jumps1_subject1.npz",
+      "raw_frames": 7334,
+      "exported_frames": 12222,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 4,
+      "verify_windows": 12213
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/jumps1_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/jumps1_subject2.npz",
+      "raw_frames": 7334,
+      "exported_frames": 12222,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 23,
+      "verify_windows": 12213
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/jumps1_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/jumps1_subject5.npz",
+      "raw_frames": 7334,
+      "exported_frames": 12222,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 11,
+      "verify_windows": 12213
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/run1_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/run1_subject2.npz",
+      "raw_frames": 7135,
+      "exported_frames": 11891,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 52,
+      "verify_windows": 11882
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/run1_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/run1_subject5.npz",
+      "raw_frames": 7135,
+      "exported_frames": 11891,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 72,
+      "verify_windows": 11882
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/run2_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/run2_subject1.npz",
+      "raw_frames": 7345,
+      "exported_frames": 12241,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 18,
+      "verify_windows": 12232
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/run2_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/run2_subject4.npz",
+      "raw_frames": 7345,
+      "exported_frames": 12241,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 50,
+      "verify_windows": 12232
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/sprint1_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/sprint1_subject2.npz",
+      "raw_frames": 8194,
+      "exported_frames": 13656,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 18,
+      "verify_windows": 13647
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/sprint1_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/sprint1_subject4.npz",
+      "raw_frames": 8194,
+      "exported_frames": 13656,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 41,
+      "verify_windows": 13647
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk1_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk1_subject1.npz",
+      "raw_frames": 7840,
+      "exported_frames": 13066,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 0,
+      "verify_windows": 13057
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk1_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk1_subject2.npz",
+      "raw_frames": 7840,
+      "exported_frames": 13066,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 22,
+      "verify_windows": 13057
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk1_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk1_subject5.npz",
+      "raw_frames": 7840,
+      "exported_frames": 13066,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 12,
+      "verify_windows": 13057
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk2_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk2_subject1.npz",
+      "raw_frames": 7146,
+      "exported_frames": 11909,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 10,
+      "verify_windows": 11900
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk2_subject3.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk2_subject3.npz",
+      "raw_frames": 7146,
+      "exported_frames": 11909,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 2,
+      "verify_windows": 11900
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk2_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk2_subject4.npz",
+      "raw_frames": 7146,
+      "exported_frames": 11909,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 1,
+      "verify_windows": 11900
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk3_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject1.npz",
+      "raw_frames": 7399,
+      "exported_frames": 12331,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 1,
+      "verify_windows": 12322
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk3_subject2.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject2.npz",
+      "raw_frames": 7399,
+      "exported_frames": 12331,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 7,
+      "verify_windows": 12322
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk3_subject3.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject3.npz",
+      "raw_frames": 7399,
+      "exported_frames": 12331,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 0,
+      "verify_windows": 12322
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk3_subject4.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject4.npz",
+      "raw_frames": 7399,
+      "exported_frames": 12331,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 2,
+      "verify_windows": 12322
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk3_subject5.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk3_subject5.npz",
+      "raw_frames": 7399,
+      "exported_frames": 12331,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 17,
+      "verify_windows": 12322
+    },
+    {
+      "input_path": "/home/hjqsyy/lafan/lafan/walk4_subject1.csv",
+      "output_path": "/home/hjqsyy/Lucasy_IsaacLab/data/lafan_g1_192d_npz/walk4_subject1.npz",
+      "raw_frames": 4918,
+      "exported_frames": 8196,
+      "fps": 50.0,
+      "feature_dim": 192,
+      "clipped_values": 1,
+      "verify_windows": 8187
+    }
+  ]
+}

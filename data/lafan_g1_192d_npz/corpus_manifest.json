@@ -1,0 +1,288 @@
+{
+  "datasets": [
+    {
+      "name": "dance1_subject1",
+      "path": "dance1_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance1_subject2",
+      "path": "dance1_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance1_subject3",
+      "path": "dance1_subject3.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance2_subject1",
+      "path": "dance2_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance2_subject2",
+      "path": "dance2_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance2_subject3",
+      "path": "dance2_subject3.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance2_subject4",
+      "path": "dance2_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "dance2_subject5",
+      "path": "dance2_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fallAndGetUp1_subject1",
+      "path": "fallAndGetUp1_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fallAndGetUp1_subject4",
+      "path": "fallAndGetUp1_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fallAndGetUp1_subject5",
+      "path": "fallAndGetUp1_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fallAndGetUp2_subject2",
+      "path": "fallAndGetUp2_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fallAndGetUp2_subject3",
+      "path": "fallAndGetUp2_subject3.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fallAndGetUp3_subject1",
+      "path": "fallAndGetUp3_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fight1_subject2",
+      "path": "fight1_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fight1_subject3",
+      "path": "fight1_subject3.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fight1_subject5",
+      "path": "fight1_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fightAndSports1_subject1",
+      "path": "fightAndSports1_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "fightAndSports1_subject4",
+      "path": "fightAndSports1_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "jumps1_subject1",
+      "path": "jumps1_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "jumps1_subject2",
+      "path": "jumps1_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "jumps1_subject5",
+      "path": "jumps1_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "run1_subject2",
+      "path": "run1_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "run1_subject5",
+      "path": "run1_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "run2_subject1",
+      "path": "run2_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "run2_subject4",
+      "path": "run2_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "sprint1_subject2",
+      "path": "sprint1_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "sprint1_subject4",
+      "path": "sprint1_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk1_subject1",
+      "path": "walk1_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk1_subject2",
+      "path": "walk1_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk1_subject5",
+      "path": "walk1_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk2_subject1",
+      "path": "walk2_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk2_subject3",
+      "path": "walk2_subject3.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk2_subject4",
+      "path": "walk2_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject1",
+      "path": "walk3_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject2",
+      "path": "walk3_subject2.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject3",
+      "path": "walk3_subject3.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject4",
+      "path": "walk3_subject4.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk3_subject5",
+      "path": "walk3_subject5.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    },
+    {
+      "name": "walk4_subject1",
+      "path": "walk4_subject1.npz",
+      "style": null,
+      "style_id": null,
+      "weight": 1.0
+    }
+  ],
+  "style_vocab": {},
+  "window_size": 10,
+  "stride": 1,
+  "feature_dim": 192
+}

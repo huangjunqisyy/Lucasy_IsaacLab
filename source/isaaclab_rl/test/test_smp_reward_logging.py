@@ -60,7 +60,7 @@ def _load_smp_cfg_module():
 
 
 def test_log_smp_pretrain_metrics_writes_noise_tags(tmp_path):
-    # 验证预训练日志会写入噪声相关的标量与直方图标签。
+    # 验证预训练日志默认只写入噪声相关标量，不写大体积直方图标签。
     logging_module = _load_diffusion_module("logging")
     writer = SummaryWriter(log_dir=tmp_path)
 
@@ -81,6 +81,28 @@ def test_log_smp_pretrain_metrics_writes_noise_tags(tmp_path):
     assert "SMPPretrain/noise_mse" in accumulator.Tags()["scalars"]
     assert "SMPPretrain/loss_total" in accumulator.Tags()["scalars"]
     assert "SMPPretrain/t22/noise_mse" in accumulator.Tags()["scalars"]
+    assert "SMPPretrain/eps_gap" not in accumulator.Tags()["histograms"]
+
+
+def test_log_smp_pretrain_metrics_can_write_histograms_when_enabled(tmp_path):
+    logging_module = _load_diffusion_module("logging")
+    writer = SummaryWriter(log_dir=tmp_path)
+
+    logging_module.log_smp_pretrain_metrics(
+        writer,
+        global_step=1,
+        loss=0.5,
+        per_timestep_mse={22: 0.6, 15: 0.4, 8: 0.3},
+        eps=torch.zeros(8, 10, 131),
+        eps_hat=torch.ones(8, 10, 131),
+        write_histograms=True,
+    )
+    writer.flush()
+    writer.close()
+
+    accumulator = EventAccumulator(str(tmp_path))
+    accumulator.Reload()
+
     assert "SMPPretrain/eps_gap" in accumulator.Tags()["histograms"]
 
 

@@ -96,3 +96,66 @@ def test_smp_trainer_prints_pretrain_progress(tmp_path, monkeypatch, capsys):
     assert any("Estimated total time:" in line for line in lines)
     assert any("Time remaining:" in line for line in lines)
     assert any("Checkpoint:" in line for line in lines)
+
+
+def test_smp_trainer_uses_tqdm_progress_bar(tmp_path, monkeypatch):
+    trainer_module = _import_trainer_module()
+    dataset_path = tmp_path / "toy_motion.npz"
+    _write_toy_motion_dataset(dataset_path)
+    monkeypatch.setattr(trainer_module, "log_smp_pretrain_metrics", lambda *args, **kwargs: None)
+
+    observed = {}
+
+    class _FakeTqdm:
+        def __init__(self, iterable, total=None, desc=None, leave=None, dynamic_ncols=None):
+            self._iterable = list(iterable)
+            self.total = total
+            self.desc = desc
+            self.leave = leave
+            self.dynamic_ncols = dynamic_ncols
+            self.steps = 0
+            self.closed = False
+            self.postfix_history = []
+            observed["instance"] = self
+
+        def __iter__(self):
+            for item in self._iterable:
+                self.steps += 1
+                yield item
+
+        def set_postfix(self, ordered_dict=None, refresh=True, **kwargs):
+            postfix = dict(ordered_dict or {})
+            postfix.update(kwargs)
+            self.postfix_history.append(postfix)
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(trainer_module, "tqdm", _FakeTqdm, raising=False)
+
+    trainer = trainer_module.SMPDiffusionTrainer(
+        dataset_path=dataset_path,
+        log_dir=tmp_path / "logs",
+        batch_size=2,
+        max_iters=2,
+        window_size=4,
+        stride=1,
+        num_diffusion_steps=7,
+        timesteps_k=[5, 3, 1],
+        hidden_dim=8,
+        num_layers=1,
+        num_heads=2,
+        device="cpu",
+    )
+
+    result = trainer.train()
+
+    bar = observed["instance"]
+    assert result["final_loss"] is not None
+    assert bar.total == 2
+    assert bar.desc == "SMP pretrain"
+    assert bar.dynamic_ncols is True
+    assert bar.steps == 2
+    assert bar.closed is True
+    assert any("loss" in postfix for postfix in bar.postfix_history)
+    assert any("running_loss" in postfix for postfix in bar.postfix_history)
