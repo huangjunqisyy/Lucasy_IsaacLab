@@ -108,6 +108,7 @@ class G1SMPRunnerCfg(SMPRunnerCfg):
         window_size=g1_smp_window_size,
         num_diffusion_steps=g1_smp_num_diffusion_steps,
         timesteps_k=g1_smp_timesteps_k,
+        reward_mode="absolute",
         reward_scale=1.0,
         style_cfg=SMPStyleCfg(
             mode="single_style",

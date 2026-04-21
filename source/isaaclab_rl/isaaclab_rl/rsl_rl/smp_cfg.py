@@ -44,9 +44,10 @@ class SMPPriorCfg:
     feature_dim: int = MISSING
     num_diffusion_steps: int = 50
     timesteps_k: list[int] = MISSING
-    reward_mode: str = "target_vs_uncond"
+    reward_mode: str = "absolute"
     reward_scale: float = 1.0
-    adaptive_norm_decay: float = 0.99
+    adaptive_norm_decay: float = 0.999
+    norm_anchor_path: str | None = None
     log_histograms_every: int = 20
     style_cfg: SMPStyleCfg = field(default_factory=SMPStyleCfg)
 

@@ -19,12 +19,14 @@ def _find_rsl_rl_repo_root() -> Path:
     raise FileNotFoundError("Could not locate nested rsl_rl repository")
 
 
-_RSL_RL_REPO_ROOT = _find_rsl_rl_repo_root()
-# 将内嵌仓库加入 import 路径，确保可以直接导入 rsl_rl.diffusion。
-if str(_RSL_RL_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_RSL_RL_REPO_ROOT))
-
-from rsl_rl.diffusion import SMPDiffusionTrainer  # noqa: E402
+try:
+    from rsl_rl.diffusion import SMPDiffusionTrainer  # noqa: E402
+except ImportError:
+    _RSL_RL_REPO_ROOT = _find_rsl_rl_repo_root()
+    # 将内嵌仓库加入 import 路径，确保可以直接导入 rsl_rl.diffusion。
+    if str(_RSL_RL_REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(_RSL_RL_REPO_ROOT))
+    from rsl_rl.diffusion import SMPDiffusionTrainer  # noqa: E402
 
 
 def _build_argparser() -> argparse.ArgumentParser:
@@ -44,6 +46,12 @@ def _build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--ema-decay", type=float, default=0.999, help="EMA 衰减系数。")
     parser.add_argument("--num-styles", type=int, default=None, help="条件模型可用的风格总数；默认从数据集推断。")
     parser.add_argument("--style-drop-prob", type=float, default=0.0, help="classifier-free guidance 的风格 dropout 概率。")
+    parser.add_argument(
+        "--log-histograms-every",
+        type=int,
+        default=0,
+        help="预训练阶段写 TensorBoard histogram 的步频；0 表示禁用，避免生成超大 event 文件。",
+    )
     parser.add_argument(
         "--timesteps-k",
         type=int,
@@ -74,6 +82,7 @@ def main():
         ema_decay=args.ema_decay,
         num_styles=args.num_styles,
         style_drop_prob=args.style_drop_prob,
+        log_histograms_every=args.log_histograms_every,
         device=args.device,
     )
     # 启动离线训练并输出关键结果，方便快速确认训练状态。
